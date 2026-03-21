@@ -19,14 +19,15 @@
                     <lifecycle>
                         <id>default</id>
                         <phases>
+                            <initialize>
+                                com.example:python-maven-plugin:initialize
+                            </initialize>
                             <generate-sources>
-                                com.example:python-maven-plugin:copy-sources
+                                com.example:python-maven-plugin:copy-sources,
+                                com.example:python-maven-plugin:write-version
                             </generate-sources>
                             <process-sources>
-                                com.example:python-maven-plugin:write-version
-                            </process-sources>
-                            <process-sources>
-                                com.example:python-maven-plugin:create-venv
+                                com.example:python-maven-plugin:venv-create
                             </process-sources>
                             <compile>
                                 com.example:python-maven-plugin:build

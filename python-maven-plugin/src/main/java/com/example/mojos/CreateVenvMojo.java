@@ -1,14 +1,17 @@
 package com.example.mojos;
 
+import java.nio.file.Path;
+
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
 
-@Mojo(name = "create-venv", defaultPhase = LifecyclePhase.PROCESS_SOURCES)
+@Mojo(name = "venv-create", defaultPhase = LifecyclePhase.PROCESS_SOURCES)
 public class CreateVenvMojo extends BaseMojo {
     @Override
     public void execute() throws MojoExecutionException {
-        runProcess(buildPath, "python3", "-m", "venv", venvPath.toString());
+        Path venvPath = getVenvPath();
+        runProcess(getPythonBuildPath(), "python3", "-m", "venv", venvPath.toString());
         getLog().info("Created virtual environment at " + venvPath);
     }
 }

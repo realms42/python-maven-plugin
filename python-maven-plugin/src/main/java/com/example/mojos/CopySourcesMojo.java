@@ -14,16 +14,19 @@ public class CopySourcesMojo extends BaseMojo {
     @Override
     public void execute() throws MojoExecutionException {
         try {
-            copyDirectory(basePath, buildPath, basePath.resolve("target"));
-            getLog().info("Copied sources to " + buildPath);
+            Path pythonBuildPath = getPythonBuildPath();
+            copyDirectory(basePath.toPath(), pythonBuildPath);
+            getLog().info("Copied sources to " + pythonBuildPath);
         } catch (IOException e) {
             throw new MojoExecutionException("Failed to copy sources: " + e.getMessage());
         }
     }
 
-    private void copyDirectory(Path source, Path target, Path... ignore) throws IOException {
+    private void copyDirectory(Path source, Path target) throws IOException {
         Files.walk(source)
                 .filter(p -> !p.startsWith(target))
+                .filter(p -> !p.equals(buildDir.toPath()))
+                .filter(p -> !p.startsWith("."))
                 .forEach(p -> {
                     try {
                         Path dest = target.resolve(source.relativize(p));

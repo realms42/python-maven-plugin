@@ -1,4 +1,4 @@
-FROM redhat/ubi8:8.10
+FROM redhat/ubi10:10.1
 
 RUN dnf install -y maven python3
 
@@ -9,5 +9,5 @@ COPY python-maven-plugin .
 RUN mvn install -B
 
 WORKDIR /example
-COPY example-project .
+COPY example_package .
 # RUN --mount=type=cache,target=/root/.m2 mvn install-B

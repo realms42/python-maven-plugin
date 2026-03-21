@@ -16,12 +16,10 @@ public class WriteVersionMojo extends BaseMojo {
     @Parameter(defaultValue = "${project.version}", readonly = true)
     private String projectVersion;
 
-    @Parameter(defaultValue = "${buildPath}/VERSION", readonly = true)
-    private Path versionPath;
-
     @Override
     public void execute() throws MojoExecutionException {
         String version = PepVersion.fromMaven(projectVersion);
+        Path versionPath = getPythonBuildPath().resolve("VERSION");
         try {
             Files.write(versionPath, version.getBytes());
             getLog().info("Written version " + version + " to " + versionPath);
