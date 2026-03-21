@@ -9,7 +9,6 @@ public class BuildMojo extends BaseMojo {
 
     @Override
     public void execute() throws MojoExecutionException {
-        runProcess(buildPath, "python3", "-m", "venv", venvPath.toString());
         runProcess(buildPath, venvBin("pip").toString(), "install", "--upgrade", "pip");
         runProcess(buildPath, venvBin("pip").toString(), "wheel", ".", "--no-deps", "-w", "dist");
     }
