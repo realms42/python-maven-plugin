@@ -11,5 +11,6 @@ public class InstallDevMojo extends BaseMojo {
     @Override
     public void execute() throws MojoExecutionException {
         Process.run(getPythonBuildPath(), venvBin("pip").toString(), "install", "-e", ".[dev]");
+        getLog().info("Installed development dependencies");
     }
 }

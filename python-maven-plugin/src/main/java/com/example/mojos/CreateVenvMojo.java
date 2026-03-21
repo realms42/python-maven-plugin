@@ -14,5 +14,6 @@ public class CreateVenvMojo extends BaseMojo {
         Path venvPath = getVenvPath();
         Process.run(getPythonBuildPath(), "python3", "-m", "venv", venvPath.toString());
         getLog().info("Created virtual environment at " + venvPath);
+        Process.run(getPythonBuildPath(), venvBin("pip").toString(), "install", "--upgrade", "pip");
     }
 }

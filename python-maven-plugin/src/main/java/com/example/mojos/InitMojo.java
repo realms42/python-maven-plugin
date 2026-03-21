@@ -19,6 +19,7 @@ public class InitMojo extends BaseMojo {
         if (!Files.exists(pythonBuildPath)) {
             try {
                 Files.createDirectories(pythonBuildPath);
+                getLog().info("Created build directory at " + pythonBuildPath);
             } catch (IOException e) {
                 throw new MojoExecutionException(
                         "Failed to create build directory " + pythonBuildPath + ": " + e.getMessage());

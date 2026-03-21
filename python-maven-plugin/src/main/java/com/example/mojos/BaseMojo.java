@@ -1,11 +1,9 @@
 package com.example.mojos;
 
 import java.io.File;
-import java.io.IOException;
 import java.nio.file.Path;
 
 import org.apache.maven.plugin.AbstractMojo;
-import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugins.annotations.Parameter;
 
 abstract class BaseMojo extends AbstractMojo {

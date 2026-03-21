@@ -15,5 +15,6 @@ public class TestMojo extends BaseMojo {
     @Override
     public void execute() throws MojoExecutionException {
         Process.run(getPythonBuildPath(), venvBin(tester).toString());
+        getLog().info("Testing completed with " + tester);
     }
 }

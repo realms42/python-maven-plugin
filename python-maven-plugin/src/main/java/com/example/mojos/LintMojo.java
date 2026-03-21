@@ -15,5 +15,6 @@ public class LintMojo extends BaseMojo {
     @Override
     public void execute() throws MojoExecutionException {
         Process.run(getPythonBuildPath(), venvBin(linter).toString());
+        getLog().info("Linting completed with " + linter);
     }
 }
