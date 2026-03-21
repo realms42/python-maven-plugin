@@ -4,6 +4,7 @@ import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
+import com.example.util.Process;
 
 @Mojo(name = "test", defaultPhase = LifecyclePhase.TEST)
 public class TestMojo extends BaseMojo {
@@ -13,6 +14,6 @@ public class TestMojo extends BaseMojo {
 
     @Override
     public void execute() throws MojoExecutionException {
-        runProcess(getPythonBuildPath(), venvBin(tester).toString());
+        Process.run(getPythonBuildPath(), venvBin(tester).toString());
     }
 }

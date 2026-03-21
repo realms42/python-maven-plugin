@@ -21,3 +21,10 @@ version = {file = "VERSION"}
 
 [project.optional-dependencies]
 dev = ["pytest", "flake8"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.python-maven-plugin]
+lint = "flake8 ."
+test = "pytest tests"

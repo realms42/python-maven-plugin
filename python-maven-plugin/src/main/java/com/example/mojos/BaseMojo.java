@@ -30,20 +30,4 @@ abstract class BaseMojo extends AbstractMojo {
         return getVenvPath().resolve(bin).resolve(executable);
     }
 
-    protected void runProcess(Path workPath, String... command) throws MojoExecutionException {
-        try {
-            int exit = new ProcessBuilder(command)
-                    .directory(workPath.toFile())
-                    .inheritIO()
-                    .start()
-                    .waitFor();
-            if (exit != 0) {
-                throw new MojoExecutionException(
-                        "Command failed with exit code " + exit + ": " + String.join(" ", command));
-            }
-        } catch (IOException | InterruptedException e) {
-            throw new MojoExecutionException("Failed to run command: " + e.getMessage());
-        }
-    }
-
 }

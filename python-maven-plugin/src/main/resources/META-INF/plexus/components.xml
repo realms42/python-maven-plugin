@@ -31,7 +31,9 @@
                                 com.example:python-maven-plugin:install-deps
                             </process-sources>
                             <test>
-                                <!-- com.example:python-maven-plugin:lint, --> com.example:python-maven-plugin:test </test>
+                                com.example:python-maven-plugin:lint,
+                                com.example:python-maven-plugin:test
+                            </test>
                             <compile>
                                 com.example:python-maven-plugin:build
                             </compile>
