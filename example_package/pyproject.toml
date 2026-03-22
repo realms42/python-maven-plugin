@@ -9,9 +9,6 @@ authors = [
 requires-python = ">=3.6"
 dependencies = []
 
-[project.scripts]
-example-package = "example_package:main"
-
 [build-system]
 requires = ["hatchling>=1.18"]
 build-backend = "hatchling.build"

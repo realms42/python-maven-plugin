@@ -20,24 +20,24 @@
                         <id>default</id>
                         <phases>
                             <initialize>
-                                com.example:python-maven-plugin:initialize,
-                                com.example:python-maven-plugin:copy-sources,
-                                com.example:python-maven-plugin:write-version
+                                io.github.realms42:python-maven-plugin:initialize,
+                                io.github.realms42:python-maven-plugin:copy-sources,
+                                io.github.realms42:python-maven-plugin:write-version
                             </initialize>
                             <generate-resources>
-                                com.example:python-maven-plugin:venv-create,
-                                com.example:python-maven-plugin:install-deps
+                                io.github.realms42:python-maven-plugin:venv-create,
+                                io.github.realms42:python-maven-plugin:install-deps
                             </generate-resources>
                             <compile>
-                                com.example:python-maven-plugin:build
+                                io.github.realms42:python-maven-plugin:build
                             </compile>
                             <test>
-                                com.example:python-maven-plugin:lint,
-                                com.example:python-maven-plugin:format,
-                                com.example:python-maven-plugin:test
+                                io.github.realms42:python-maven-plugin:lint,
+                                io.github.realms42:python-maven-plugin:format,
+                                io.github.realms42:python-maven-plugin:test
                             </test>
                             <package>
-                                com.example:python-maven-plugin:package
+                                io.github.realms42:python-maven-plugin:package
                             </package>
                         </phases>
                     </lifecycle>
