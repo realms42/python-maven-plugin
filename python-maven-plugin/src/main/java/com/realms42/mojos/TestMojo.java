@@ -1,5 +1,9 @@
 package com.realms42.mojos;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
@@ -15,7 +19,9 @@ public class TestMojo extends BaseMojo {
 
     @Override
     public void execute() throws MojoExecutionException {
-        CommandRunner.run(getWorkPath(), getVenvBin(tester).toString());
+        List<String> cmd = new ArrayList<>(
+                Arrays.asList(getVenvBin(tester).toString()));
+        CommandRunner.run(getWorkPath(), cmd);
         getLog().info("Testing completed with " + tester);
     }
 }

@@ -1,5 +1,9 @@
 package com.realms42.mojos;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
@@ -11,9 +15,13 @@ public class InstallDevMojo extends BaseMojo {
 
     @Override
     public void execute() throws MojoExecutionException {
-        CommandRunner.run(getWorkPath(), getVenvBin("pip").toString(), "install", "build", "ruff", "pytest");
+        List<String> cmd_dep = new ArrayList<>(
+                Arrays.asList(getVenvBin("pip").toString(), "install", "build", "ruff", "pytest"));
+        CommandRunner.run(getWorkPath(), cmd_dep);
         getLog().info("Installed build, ruff, and pytest in the virtual environment.");
-        CommandRunner.run(getWorkPath(), getVenvBin("pip").toString(), "install", "-e", ".");
+        List<String> cmd_install = new ArrayList<>(
+                Arrays.asList(getVenvBin("pip").toString(), "install", "-e", "."));
+        CommandRunner.run(getWorkPath(), cmd_install);
         getLog().info("Installed package with dev dependencies.");
     }
 }

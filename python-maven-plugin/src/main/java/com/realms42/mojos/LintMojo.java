@@ -32,15 +32,16 @@ public class LintMojo extends BaseMojo {
         List<String> cmd = new ArrayList<>(Arrays.asList(
                 getVenvBin("ruff").toString(), "check",
                 "--select", lintSelect));
-
+        getLog().info("Selected rules: " + lintSelect);
         if (lintIgnore != null && !lintIgnore.isBlank()) {
             cmd.add("--ignore");
             cmd.add(lintIgnore);
+            getLog().info("Ignored rules: " + lintIgnore);
         }
 
         cmd.add(".");
 
-        CommandRunner.run(getWorkPath(), cmd.toArray(new String[0]));
+        CommandRunner.run(getWorkPath(), cmd);
         getLog().info("Linting check completed.");
     }
 }
