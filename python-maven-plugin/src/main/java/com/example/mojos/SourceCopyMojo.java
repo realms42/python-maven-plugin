@@ -9,14 +9,14 @@ import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
 
 @Mojo(name = "copy-sources", defaultPhase = LifecyclePhase.GENERATE_SOURCES)
-public class CopySourcesMojo extends BaseMojo {
+public class SourceCopyMojo extends BaseMojo {
 
     @Override
     public void execute() throws MojoExecutionException {
         try {
-            Path pythonBuildPath = getPythonBuildPath();
-            copyDirectory(basePath.toPath(), pythonBuildPath);
-            getLog().info("Copied sources to " + pythonBuildPath);
+            Path srcPath = getSrcPath();
+            copyDirectory(basePath.toPath(), srcPath);
+            getLog().info("Copied sources to " + srcPath);
         } catch (IOException e) {
             throw new MojoExecutionException("Failed to copy sources: " + e.getMessage());
         }
@@ -25,7 +25,7 @@ public class CopySourcesMojo extends BaseMojo {
     private void copyDirectory(Path source, Path target) throws IOException {
         Files.walk(source)
                 .filter(p -> !p.startsWith(target))
-                .filter(p -> !p.equals(buildDir.toPath()))
+                .filter(p -> !p.startsWith(buildDir.toPath()))
                 .filter(p -> !p.startsWith("."))
                 .forEach(p -> {
                     try {

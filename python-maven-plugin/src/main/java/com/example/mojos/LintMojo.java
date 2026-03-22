@@ -3,18 +3,13 @@ package com.example.mojos;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
-import org.apache.maven.plugins.annotations.Parameter;
-import com.example.util.Process;
+import com.example.util.CommandRunner;
 
-@Mojo(name = "lint", defaultPhase = LifecyclePhase.TEST)
+@Mojo(name = "lint", defaultPhase = LifecyclePhase.VERIFY)
 public class LintMojo extends BaseMojo {
-
-    @Parameter(defaultValue = "flake8")
-    private String linter;
-
     @Override
     public void execute() throws MojoExecutionException {
-        Process.run(getPythonBuildPath(), venvBin(linter).toString());
-        getLog().info("Linting completed with " + linter);
+        CommandRunner.run(getSrcPath(), getVenvBin("ruff").toString(), "check", ".");
+        getLog().info("Linting check completed.");
     }
 }

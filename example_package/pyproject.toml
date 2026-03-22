@@ -13,18 +13,15 @@ dependencies = []
 example-package = "example_package:main"
 
 [build-system]
-requires = ["setuptools>=80"]
-build-backend = "setuptools.build_meta"
+requires = ["hatchling>=1.18"]
+build-backend = "hatchling.build"
 
-[tool.setuptools.dynamic]
-version = {file = "VERSION"}
-
-[project.optional-dependencies]
-dev = ["pytest", "flake8"]
+[tool.hatch.version]
+path = "VERSION"
+pattern = "^(?P<version>[0-9]+(?:\\.[0-9]+)*(?:[a-zA-Z0-9\\.\\-+]*)?)"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 
-[tool.python-maven-plugin]
-lint = "flake8 ."
-test = "pytest tests"
+[tool.ruff]
+exclude = ["tests"]

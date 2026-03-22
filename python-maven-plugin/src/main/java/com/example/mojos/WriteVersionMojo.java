@@ -8,7 +8,7 @@ import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
-import com.example.util.PepVersion;
+import com.example.util.Python;
 
 @Mojo(name = "write-version", defaultPhase = LifecyclePhase.PROCESS_SOURCES)
 public class WriteVersionMojo extends BaseMojo {
@@ -18,8 +18,8 @@ public class WriteVersionMojo extends BaseMojo {
 
     @Override
     public void execute() throws MojoExecutionException {
-        String version = PepVersion.fromMaven(projectVersion);
-        Path versionPath = getPythonBuildPath().resolve("VERSION");
+        String version = Python.versionFromMaven(projectVersion);
+        Path versionPath = getSrcPath().resolve("VERSION");
         try {
             Files.write(versionPath, version.getBytes());
             getLog().info("Written version " + version + " to " + versionPath);

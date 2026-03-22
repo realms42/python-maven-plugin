@@ -4,7 +4,7 @@ import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
-import com.example.util.Process;
+import com.example.util.CommandRunner;
 
 @Mojo(name = "test", defaultPhase = LifecyclePhase.TEST)
 public class TestMojo extends BaseMojo {
@@ -14,7 +14,7 @@ public class TestMojo extends BaseMojo {
 
     @Override
     public void execute() throws MojoExecutionException {
-        Process.run(getPythonBuildPath(), venvBin(tester).toString());
+        CommandRunner.run(getSrcPath(), getVenvBin(tester).toString());
         getLog().info("Testing completed with " + tester);
     }
 }

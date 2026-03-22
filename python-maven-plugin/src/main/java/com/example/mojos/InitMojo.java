@@ -15,7 +15,7 @@ public class InitMojo extends BaseMojo {
         if (!Files.exists(basePath.toPath())) {
             throw new MojoExecutionException("Base directory " + basePath + " does not exist");
         }
-        Path pythonBuildPath = getPythonBuildPath();
+        Path pythonBuildPath = getSrcPath();
         if (!Files.exists(pythonBuildPath)) {
             try {
                 Files.createDirectories(pythonBuildPath);
