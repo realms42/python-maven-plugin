@@ -1,4 +1,4 @@
-package com.example.mojos;
+package com.realms42.mojos;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -8,7 +8,8 @@ import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
-import com.example.util.Python;
+
+import com.realms42.util.Python;
 
 @Mojo(name = "write-version", defaultPhase = LifecyclePhase.INITIALIZE)
 public class WriteVersionMojo extends BaseMojo {

@@ -1,4 +1,4 @@
-package com.example.mojos;
+package com.realms42.mojos;
 
 import java.io.File;
 import java.nio.file.Path;

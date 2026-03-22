@@ -1,4 +1,4 @@
-package com.example.util;
+package com.realms42.util;
 
 import java.io.IOException;
 import java.nio.file.Path;
