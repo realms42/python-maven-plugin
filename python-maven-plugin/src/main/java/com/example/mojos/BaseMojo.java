@@ -19,8 +19,8 @@ abstract class BaseMojo extends AbstractMojo {
         return buildDir.toPath().resolve("python-maven-plugin");
     }
 
-    protected Path getSrcPath() {
-        return getPythonMavenPath().resolve("src");
+    protected Path getWorkPath() {
+        return getPythonMavenPath().resolve("workdir");
     }
 
     protected Path getBuildPath() {

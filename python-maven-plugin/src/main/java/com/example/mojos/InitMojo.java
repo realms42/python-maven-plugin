@@ -15,14 +15,14 @@ public class InitMojo extends BaseMojo {
         if (!Files.exists(basePath.toPath())) {
             throw new MojoExecutionException("Base directory " + basePath + " does not exist");
         }
-        Path pythonBuildPath = getSrcPath();
-        if (!Files.exists(pythonBuildPath)) {
+        Path workPath = getWorkPath();
+        if (!Files.exists(workPath)) {
             try {
-                Files.createDirectories(pythonBuildPath);
-                getLog().info("Created build directory at " + pythonBuildPath);
+                Files.createDirectories(workPath);
+                getLog().info("Created build directory at " + workPath);
             } catch (IOException e) {
                 throw new MojoExecutionException(
-                        "Failed to create build directory " + pythonBuildPath + ": " + e.getMessage());
+                        "Failed to create build directory " + workPath + ": " + e.getMessage());
             }
         }
     }

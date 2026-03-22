@@ -20,29 +20,25 @@
                         <id>default</id>
                         <phases>
                             <initialize>
-                                com.example:python-maven-plugin:initialize
-                            </initialize>
-                            <generate-sources>
+                                com.example:python-maven-plugin:initialize,
                                 com.example:python-maven-plugin:copy-sources,
                                 com.example:python-maven-plugin:write-version
-                            </generate-sources>
-                            <process-sources>
+                            </initialize>
+                            <generate-resources>
                                 com.example:python-maven-plugin:venv-create,
                                 com.example:python-maven-plugin:install-deps
-                            </process-sources>
-                            <test>
-                                com.example:python-maven-plugin:test
-                            </test>
-                            <verify>
-                                com.example:python-maven-plugin:lint,
-                                com.example:python-maven-plugin:format
-                            </verify>
+                            </generate-resources>
                             <compile>
                                 com.example:python-maven-plugin:build
                             </compile>
-                            <!-- <package>
+                            <test>
+                                com.example:python-maven-plugin:lint,
+                                com.example:python-maven-plugin:format,
+                                com.example:python-maven-plugin:test
+                            </test>
+                            <package>
                                 com.example:python-maven-plugin:package
-                            </package> -->
+                            </package>
                         </phases>
                     </lifecycle>
                 </lifecycles>

@@ -10,7 +10,7 @@ public class BuildMojo extends BaseMojo {
 
     @Override
     public void execute() throws MojoExecutionException {
-        CommandRunner.run(getSrcPath(), getVenvBin("python3").toString(), "-m", "build", "--outdir",
+        CommandRunner.run(getWorkPath(), getVenvBin("python3").toString(), "-m", "build", "--outdir",
                 getBuildPath().toString());
     }
 }

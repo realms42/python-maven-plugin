@@ -14,7 +14,7 @@ public class TestMojo extends BaseMojo {
 
     @Override
     public void execute() throws MojoExecutionException {
-        CommandRunner.run(getSrcPath(), getVenvBin(tester).toString());
+        CommandRunner.run(getWorkPath(), getVenvBin(tester).toString());
         getLog().info("Testing completed with " + tester);
     }
 }

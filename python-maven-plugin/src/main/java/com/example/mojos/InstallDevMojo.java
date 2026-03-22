@@ -10,9 +10,9 @@ public class InstallDevMojo extends BaseMojo {
 
     @Override
     public void execute() throws MojoExecutionException {
-        CommandRunner.run(getSrcPath(), getVenvBin("pip").toString(), "install", "build", "ruff", "pytest");
+        CommandRunner.run(getWorkPath(), getVenvBin("pip").toString(), "install", "build", "ruff", "pytest");
         getLog().info("Installed build, ruff, and pytest in the virtual environment.");
-        CommandRunner.run(getSrcPath(), getVenvBin("pip").toString(), "install", "-e", ".[dev]");
+        CommandRunner.run(getWorkPath(), getVenvBin("pip").toString(), "install", "-e", ".");
         getLog().info("Installed package with dev dependencies.");
     }
 }

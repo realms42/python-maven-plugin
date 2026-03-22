@@ -10,7 +10,7 @@ import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
 import com.example.util.Python;
 
-@Mojo(name = "write-version", defaultPhase = LifecyclePhase.PROCESS_SOURCES)
+@Mojo(name = "write-version", defaultPhase = LifecyclePhase.INITIALIZE)
 public class WriteVersionMojo extends BaseMojo {
 
     @Parameter(defaultValue = "${project.version}", readonly = true)
@@ -19,7 +19,7 @@ public class WriteVersionMojo extends BaseMojo {
     @Override
     public void execute() throws MojoExecutionException {
         String version = Python.versionFromMaven(projectVersion);
-        Path versionPath = getSrcPath().resolve("VERSION");
+        Path versionPath = getWorkPath().resolve("VERSION");
         try {
             Files.write(versionPath, version.getBytes());
             getLog().info("Written version " + version + " to " + versionPath);

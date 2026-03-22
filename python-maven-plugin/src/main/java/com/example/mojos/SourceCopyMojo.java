@@ -8,15 +8,15 @@ import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
 
-@Mojo(name = "copy-sources", defaultPhase = LifecyclePhase.GENERATE_SOURCES)
+@Mojo(name = "copy-sources", defaultPhase = LifecyclePhase.INITIALIZE)
 public class SourceCopyMojo extends BaseMojo {
 
     @Override
     public void execute() throws MojoExecutionException {
         try {
-            Path srcPath = getSrcPath();
-            copyDirectory(basePath.toPath(), srcPath);
-            getLog().info("Copied sources to " + srcPath);
+            Path workPath = getWorkPath();
+            copyDirectory(basePath.toPath(), workPath);
+            getLog().info("Copied sources to " + workPath);
         } catch (IOException e) {
             throw new MojoExecutionException("Failed to copy sources: " + e.getMessage());
         }

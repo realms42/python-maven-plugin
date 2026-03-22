@@ -9,7 +9,7 @@ import com.example.util.CommandRunner;
 public class VenvCreateMojo extends BaseMojo {
     @Override
     public void execute() throws MojoExecutionException {
-        CommandRunner.run(getSrcPath(), "python3", "-m", "venv", getVenvPath().toString());
+        CommandRunner.run(getWorkPath(), "python3", "-m", "venv", getVenvPath().toString());
         getLog().info("Created virtual environment at " + getVenvPath());
     }
 }
