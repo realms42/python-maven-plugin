@@ -1,4 +1,4 @@
-package com.realms42.mojos;
+package com.github.realms42.mojos;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -8,7 +8,7 @@ import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
 
-import com.realms42.util.CommandRunner;
+import com.github.realms42.util.CommandRunnerUtil;
 
 @Mojo(name = "venv-create", defaultPhase = LifecyclePhase.PROCESS_SOURCES)
 public class VenvCreateMojo extends BaseMojo {
@@ -16,7 +16,7 @@ public class VenvCreateMojo extends BaseMojo {
     public void execute() throws MojoExecutionException {
         List<String> cmd = new ArrayList<>(
                 Arrays.asList("python3", "-m", "venv", getVenvPath().toString()));
-        CommandRunner.run(getWorkPath(), cmd);
+        CommandRunnerUtil.run(getWorkPath(), cmd);
         getLog().info("Created virtual environment at " + getVenvPath());
     }
 }

@@ -10,4 +10,4 @@ RUN mvn install -B
 
 WORKDIR /example
 COPY example_package .
-# RUN --mount=type=cache,target=/root/.m2 mvn install-B
+# RUN --mount=type=cache,target=/root/.m2 mvn install -B

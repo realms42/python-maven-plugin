@@ -1,4 +1,4 @@
-package com.realms42.mojos;
+package com.github.realms42.mojos;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -8,15 +8,15 @@ import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
 
-import com.realms42.util.CommandRunner;
+import com.github.realms42.util.CommandRunnerUtil;
 
-@Mojo(name = "format", defaultPhase = LifecyclePhase.TEST)
-public class FormatMojo extends BaseMojo {
+@Mojo(name = "build", defaultPhase = LifecyclePhase.COMPILE)
+public class BuildMojo extends BaseMojo {
+
     @Override
     public void execute() throws MojoExecutionException {
         List<String> cmd = new ArrayList<>(
-                Arrays.asList(getVenvBin("ruff").toString(), "format", "--check", "."));
-        CommandRunner.run(getWorkPath(), cmd);
-        getLog().info("Code formatting check completed.");
+                Arrays.asList(getVenvBin("python3").toString(), "-m", "build", "--outdir", getBuildPath().toString()));
+        CommandRunnerUtil.run(getWorkPath(), cmd);
     }
 }

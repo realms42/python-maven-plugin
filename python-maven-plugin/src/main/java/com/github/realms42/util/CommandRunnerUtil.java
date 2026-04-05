@@ -1,4 +1,4 @@
-package com.realms42.util;
+package com.github.realms42.util;
 
 import java.io.IOException;
 import java.nio.file.Path;
@@ -6,7 +6,7 @@ import java.util.List;
 
 import org.apache.maven.plugin.MojoExecutionException;
 
-public class CommandRunner {
+public class CommandRunnerUtil {
     public static void run(Path workPath, List<String> cmd) throws MojoExecutionException {
         try {
             ProcessBuilder pb = new ProcessBuilder(cmd)
@@ -21,5 +21,4 @@ public class CommandRunner {
             throw new MojoExecutionException("Failed to run command: " + e.getMessage());
         }
     }
-
 }

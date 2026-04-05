@@ -1,4 +1,4 @@
-package com.realms42.mojos;
+package com.github.realms42.mojos;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -9,7 +9,7 @@ import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
 
-import com.realms42.util.CommandRunner;
+import com.github.realms42.util.CommandRunnerUtil;
 
 @Mojo(name = "test", defaultPhase = LifecyclePhase.TEST)
 public class TestMojo extends BaseMojo {
@@ -21,7 +21,7 @@ public class TestMojo extends BaseMojo {
     public void execute() throws MojoExecutionException {
         List<String> cmd = new ArrayList<>(
                 Arrays.asList(getVenvBin(tester).toString()));
-        CommandRunner.run(getWorkPath(), cmd);
+        CommandRunnerUtil.run(getWorkPath(), cmd);
         getLog().info("Testing completed with " + tester);
     }
 }

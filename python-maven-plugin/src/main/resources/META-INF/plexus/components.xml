@@ -20,24 +20,24 @@
                         <id>default</id>
                         <phases>
                             <initialize>
-                                io.github.realms42:python-maven-plugin:initialize,
-                                io.github.realms42:python-maven-plugin:copy-sources,
-                                io.github.realms42:python-maven-plugin:write-version
+                                com.github.realms42:python-maven-plugin:initialize,
+                                com.github.realms42:python-maven-plugin:copy-sources,
                             </initialize>
                             <generate-resources>
-                                io.github.realms42:python-maven-plugin:venv-create,
-                                io.github.realms42:python-maven-plugin:install-deps
+                                com.github.realms42:python-maven-plugin:generate-pyproject,
+                                com.github.realms42:python-maven-plugin:venv-create,
+                                com.github.realms42:python-maven-plugin:install-deps
                             </generate-resources>
                             <compile>
-                                io.github.realms42:python-maven-plugin:build
+                                com.github.realms42:python-maven-plugin:build
                             </compile>
                             <test>
-                                io.github.realms42:python-maven-plugin:lint,
-                                io.github.realms42:python-maven-plugin:format,
-                                io.github.realms42:python-maven-plugin:test
+                                com.github.realms42:python-maven-plugin:lint,
+                                com.github.realms42:python-maven-plugin:format,
+                                com.github.realms42:python-maven-plugin:test
                             </test>
                             <package>
-                                io.github.realms42:python-maven-plugin:package
+                                com.github.realms42:python-maven-plugin:package
                             </package>
                         </phases>
                     </lifecycle>

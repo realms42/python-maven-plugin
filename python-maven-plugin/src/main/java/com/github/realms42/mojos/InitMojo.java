@@ -1,4 +1,4 @@
-package com.realms42.mojos;
+package com.github.realms42.mojos;
 
 import java.io.IOException;
 import java.nio.file.Files;

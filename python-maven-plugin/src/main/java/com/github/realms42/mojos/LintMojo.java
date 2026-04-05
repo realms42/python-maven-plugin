@@ -1,4 +1,4 @@
-package com.realms42.mojos;
+package com.github.realms42.mojos;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -9,7 +9,7 @@ import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
 
-import com.realms42.util.CommandRunner;
+import com.github.realms42.util.CommandRunnerUtil;
 
 @Mojo(name = "lint", defaultPhase = LifecyclePhase.TEST)
 public class LintMojo extends BaseMojo {
@@ -41,7 +41,7 @@ public class LintMojo extends BaseMojo {
 
         cmd.add(".");
 
-        CommandRunner.run(getWorkPath(), cmd);
+        CommandRunnerUtil.run(getWorkPath(), cmd);
         getLog().info("Linting check completed.");
     }
 }

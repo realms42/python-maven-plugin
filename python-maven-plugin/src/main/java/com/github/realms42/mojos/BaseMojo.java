@@ -1,4 +1,4 @@
-package com.realms42.mojos;
+package com.github.realms42.mojos;
 
 import java.io.File;
 import java.nio.file.Path;
@@ -19,7 +19,7 @@ abstract class BaseMojo extends AbstractMojo {
     }
 
     protected Path getWorkPath() {
-        return getPythonMavenPath().resolve("workdir");
+        return getPythonMavenPath().resolve("work");
     }
 
     protected Path getBuildPath() {
