@@ -9,8 +9,6 @@ import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
 
-import com.github.realms42.util.CommandRunnerUtil;
-
 @Mojo(name = "lint", defaultPhase = LifecyclePhase.TEST)
 public class LintMojo extends BaseMojo {
     @Parameter(property = "python.lint.select", defaultValue = "E,F,W,I,UP")
@@ -29,19 +27,16 @@ public class LintMojo extends BaseMojo {
             return;
         }
 
-        List<String> cmd = new ArrayList<>(Arrays.asList(
-                getVenvBin("ruff").toString(), "check",
-                "--select", lintSelect));
+        List<String> cmd = new ArrayList<>(Arrays.asList("ruff", "check", "--select", lintSelect));
         getLog().info("Selected rules: " + lintSelect);
         if (lintIgnore != null && !lintIgnore.isBlank()) {
             cmd.add("--ignore");
             cmd.add(lintIgnore);
             getLog().info("Ignored rules: " + lintIgnore);
         }
-
         cmd.add(".");
 
-        CommandRunnerUtil.run(getWorkPath(), cmd);
+        runInVenv(cmd);
         getLog().info("Linting check completed.");
     }
 }

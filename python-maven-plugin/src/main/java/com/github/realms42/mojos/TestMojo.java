@@ -1,15 +1,9 @@
 package com.github.realms42.mojos;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
-
-import com.github.realms42.util.CommandRunnerUtil;
 
 @Mojo(name = "test", defaultPhase = LifecyclePhase.TEST)
 public class TestMojo extends BaseMojo {
@@ -17,11 +11,16 @@ public class TestMojo extends BaseMojo {
     @Parameter(defaultValue = "pytest")
     private String tester;
 
+    @Parameter(property = "python.test.skip", defaultValue = "false")
+    private boolean skipTests;
+
     @Override
     public void execute() throws MojoExecutionException {
-        List<String> cmd = new ArrayList<>(
-                Arrays.asList(getVenvBin(tester).toString()));
-        CommandRunnerUtil.run(getWorkPath(), cmd);
+        if (skipTests) {
+            getLog().info("Tests skipped.");
+            return;
+        }
+        runInVenv(tester);
         getLog().info("Testing completed with " + tester);
     }
 }
