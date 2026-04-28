@@ -17,31 +17,49 @@ public class SetupEnvMojo extends BaseMojo {
     private String python;
 
     /**
-     * Optional extras to install with the package, e.g. "docs,extra".
-     * Translates to "pip install -e .[extras]".
+     * Optional extras to install with the project package, e.g. "docs,grpc".
+     * These are installed into both venvs. Only use this for runtime/test extras
+     * declared in [project.optional-dependencies] of the generated pyproject.toml.
      */
     @Parameter
     private String extras;
 
     @Override
     public void execute() throws MojoExecutionException {
-        if (!Files.exists(getVenvPath())) {
-            CommandRunnerUtil.run(getWorkPath(),
-                    Arrays.asList(python, "-m", "venv", getVenvPath().toString()));
-            getLog().info("Created virtual environment at " + getVenvPath());
-        } else {
-            getLog().info("Reusing existing virtual environment at " + getVenvPath());
-        }
-
-        // Plugin tooling: pinned/owned by the plugin, not coupled to the user's pyproject.
-        runInVenv("python", "-m", "pip", "install", "--quiet", "--disable-pip-version-check",
-                "build", "pytest", "ruff");
-
-        // Install the user's package in editable mode using the generated pyproject.toml.
         String spec = (extras != null && !extras.isBlank()) ? ".[" + extras + "]" : ".";
-        runInVenv("python", "-m", "pip", "install", "--quiet", "--disable-pip-version-check",
-                "-e", spec);
 
-        getLog().info("Environment ready at " + getVenvPath());
+        setupProjectVenv(spec);
+        setupToolsVenv(spec);
+    }
+
+    private void setupProjectVenv(String spec) throws MojoExecutionException {
+        if (!Files.exists(getProjectVenvPath())) {
+            CommandRunnerUtil.run(getWorkPath(),
+                    Arrays.asList(python, "-m", "venv", getProjectVenvPath().toString()));
+            getLog().info("Created project venv at " + getProjectVenvPath());
+        } else {
+            getLog().info("Reusing project venv at " + getProjectVenvPath());
+        }
+        // Install only the project and its declared dependencies — no plugin tooling.
+        runInProjectVenv("python", "-m", "pip", "install", "--quiet",
+                "--disable-pip-version-check", "-e", spec);
+        getLog().info("Project venv ready (clean runtime environment)");
+    }
+
+    private void setupToolsVenv(String spec) throws MojoExecutionException {
+        if (!Files.exists(getToolsVenvPath())) {
+            CommandRunnerUtil.run(getWorkPath(),
+                    Arrays.asList(python, "-m", "venv", getToolsVenvPath().toString()));
+            getLog().info("Created tools venv at " + getToolsVenvPath());
+        } else {
+            getLog().info("Reusing tools venv at " + getToolsVenvPath());
+        }
+        // Install plugin tooling.
+        runInVenv("python", "-m", "pip", "install", "--quiet",
+                "--disable-pip-version-check", "build", "pytest", "ruff");
+        // Install the project editable so tests can import it.
+        runInVenv("python", "-m", "pip", "install", "--quiet",
+                "--disable-pip-version-check", "-e", spec);
+        getLog().info("Tools venv ready (build, pytest, ruff + project editable install)");
     }
 }

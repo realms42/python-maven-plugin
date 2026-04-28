@@ -33,13 +33,22 @@ abstract class BaseMojo extends AbstractMojo {
         return getPythonMavenPath().resolve("build");
     }
 
-    protected Path getVenvPath() {
+    /** Clean project venv — only the user's declared dependencies, no plugin tooling. */
+    protected Path getProjectVenvPath() {
         return getWorkPath().resolve(".venv");
+    }
+
+    /**
+     * Plugin tools venv — contains pytest, ruff, build, and an editable install of
+     * the project so tests can import it. Kept outside work/ so it is never packaged.
+     */
+    protected Path getToolsVenvPath() {
+        return getPythonMavenPath().resolve("tools");
     }
 
     protected Path getVenvBinDir() {
         String binDir = System.getProperty("os.name").toLowerCase().contains("win") ? "Scripts" : "bin";
-        return getVenvPath().resolve(binDir);
+        return getToolsVenvPath().resolve(binDir);
     }
 
     /**
@@ -50,7 +59,7 @@ abstract class BaseMojo extends AbstractMojo {
      */
     protected void runInVenv(String... cmd) throws MojoExecutionException {
         Map<String, String> env = new HashMap<>();
-        env.put("VIRTUAL_ENV", getVenvPath().toString());
+        env.put("VIRTUAL_ENV", getToolsVenvPath().toString());
         String existingPath = System.getenv("PATH");
         env.put("PATH", getVenvBinDir() + (existingPath == null ? "" : File.pathSeparator + existingPath));
         CommandRunnerUtil.run(getWorkPath(), Arrays.asList(cmd), env);
@@ -58,6 +67,16 @@ abstract class BaseMojo extends AbstractMojo {
 
     protected void runInVenv(List<String> cmd) throws MojoExecutionException {
         runInVenv(cmd.toArray(new String[0]));
+    }
+
+    protected void runInProjectVenv(String... cmd) throws MojoExecutionException {
+        String binDir = System.getProperty("os.name").toLowerCase().contains("win") ? "Scripts" : "bin";
+        Path projectBinDir = getProjectVenvPath().resolve(binDir);
+        Map<String, String> env = new HashMap<>();
+        env.put("VIRTUAL_ENV", getProjectVenvPath().toString());
+        String existingPath = System.getenv("PATH");
+        env.put("PATH", projectBinDir + (existingPath == null ? "" : File.pathSeparator + existingPath));
+        CommandRunnerUtil.run(getWorkPath(), Arrays.asList(cmd), env);
     }
 
 }
