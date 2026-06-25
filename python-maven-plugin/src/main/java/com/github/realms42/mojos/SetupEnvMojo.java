@@ -30,7 +30,7 @@ public class SetupEnvMojo extends BaseMojo {
         } else {
             getLog().info("Reusing project venv at " + getProjectVenvPath());
         }
-        runInProjectVenv("python", "-m", "pip", "install", "--quiet",
+        runInProjectVenv(python, "-m", "pip", "install", "--quiet",
                 "--disable-pip-version-check", "-e", ".");
         getLog().info("Project venv ready (clean runtime environment)");
     }
@@ -43,9 +43,9 @@ public class SetupEnvMojo extends BaseMojo {
         } else {
             getLog().info("Reusing tools venv at " + getToolsVenvPath());
         }
-        runInVenv("python", "-m", "pip", "install", "--quiet",
+        runInVenv(python, "-m", "pip", "install", "--quiet",
                 "--disable-pip-version-check", "build", "pytest", "ruff");
-        runInVenv("python", "-m", "pip", "install", "--quiet",
+        runInVenv(python, "-m", "pip", "install", "--quiet",
                 "--disable-pip-version-check", "-e", ".");
         getLog().info("Tools venv ready (build, pytest, ruff + project editable install)");
     }
