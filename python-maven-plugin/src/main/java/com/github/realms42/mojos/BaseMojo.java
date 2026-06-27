@@ -71,12 +71,15 @@ abstract class BaseMojo extends AbstractMojo {
     }
 
     /**
-     * Run a command in the project work directory with the given venv
-     * "activated" via VIRTUAL_ENV and PATH. The program (the first element) is
-     * prefixed with the venv's bin/Scripts directory; the remaining arguments
-     * are passed through unchanged. ProcessBuilder resolves a bare program name
-     * against the JVM's own PATH rather than the PATH set here, so the venv
-     * prefix is what makes venv-only tools like ruff or pytest runnable.
+     * Run a bare venv command in the project work directory. {@code cmd[0]} is a
+     * plain executable name such as "ruff" or "pytest"; it is run from the given
+     * venv's bin/Scripts directory, with the remaining arguments passed through
+     * unchanged. The venv is also "activated" via VIRTUAL_ENV and PATH.
+     *
+     * <p>ProcessBuilder resolves a bare name against the JVM's own PATH rather
+     * than the PATH set here, so pinning the program to the venv's bin dir is
+     * what makes venv-only tools runnable. This intentionally supports bare
+     * commands only — callers pass the tool name, never a path to it.
      */
     private void runInVenv(Path venvPath, String... cmd) throws MojoExecutionException {
         Path binDir = venvBinDir(venvPath);
