@@ -1,12 +1,82 @@
 # https://taskfile.dev
+#
+# Common tasks for the python-maven-plugin repo.
+#   - PLUGIN_DIR  : the Maven plugin itself (Java)
+#   - EXAMPLE_DIR : an example Python package that consumes the plugin
 
 version: '3'
 
 vars:
-  GREETING: Hello, World!
+  PLUGIN_DIR: python-maven-plugin
+  EXAMPLE_DIR: example_package
+  MVN: mvn -B
+  IMAGE: python-maven-plugin:latest
 
 tasks:
   default:
+    desc: List all available tasks
     cmds:
-      - echo "{{.GREETING}}"
+      - task --list
     silent: true
+
+  build:
+    desc: Compile and install the plugin into the local Maven repo
+    dir: '{{.PLUGIN_DIR}}'
+    cmds:
+      - '{{.MVN}} install'
+
+  test:
+    desc: Run the plugin's unit tests
+    dir: '{{.PLUGIN_DIR}}'
+    cmds:
+      - '{{.MVN}} test'
+
+  verify:
+    desc: Run the full plugin verification (tests + checks)
+    dir: '{{.PLUGIN_DIR}}'
+    cmds:
+      - '{{.MVN}} verify'
+
+  offline:
+    desc: Resolve and cache all plugin dependencies for offline use
+    dir: '{{.PLUGIN_DIR}}'
+    cmds:
+      - '{{.MVN}} dependency:go-offline'
+
+  example:
+    desc: Build the example package using the installed plugin
+    deps: [build]
+    dir: '{{.EXAMPLE_DIR}}'
+    cmds:
+      - '{{.MVN}} install'
+
+  lint:
+    desc: Lint the example package via the plugin's lint goal
+    deps: [build]
+    dir: '{{.EXAMPLE_DIR}}'
+    cmds:
+      - '{{.MVN}} com.github.realms42:python-maven-plugin:lint'
+
+  format:
+    desc: Format the example package via the plugin's format goal
+    deps: [build]
+    dir: '{{.EXAMPLE_DIR}}'
+    cmds:
+      - '{{.MVN}} com.github.realms42:python-maven-plugin:format'
+
+  docker:
+    desc: Build the Docker image (plugin + example)
+    cmds:
+      - docker build -t {{.IMAGE}} .
+
+  clean:
+    desc: Clean Maven build output for the plugin and the example
+    cmds:
+      - '{{.MVN}} -f {{.PLUGIN_DIR}}/pom.xml clean'
+      - '{{.MVN}} -f {{.EXAMPLE_DIR}}/pom.xml clean'
+
+  all:
+    desc: Build the plugin and the example package end to end
+    cmds:
+      - task: build
+      - task: example
