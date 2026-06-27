@@ -2,6 +2,7 @@ package com.github.realms42.mojos;
 
 import java.io.File;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -47,36 +48,46 @@ abstract class BaseMojo extends AbstractMojo {
     }
 
     protected Path getVenvBinDir() {
-        String binDir = System.getProperty("os.name").toLowerCase().contains("win") ? "Scripts" : "bin";
-        return getToolsVenvPath().resolve(binDir);
+        return venvBinDir(getToolsVenvPath());
     }
 
-    /**
-     * Run a command in the project work directory with the venv "activated" via
-     * VIRTUAL_ENV and PATH environment variables. The first PATH entry is the
-     * venv's bin/Scripts directory, so plain executable names like "ruff" or
-     * "pytest" resolve to the venv's copies.
-     */
+    private static Path venvBinDir(Path venvPath) {
+        String binDir = System.getProperty("os.name").toLowerCase().contains("win") ? "Scripts" : "bin";
+        return venvPath.resolve(binDir);
+    }
+
+    /** Run a command in the plugin tools venv (ruff, pytest, build). */
     protected void runInVenv(String... cmd) throws MojoExecutionException {
-        Map<String, String> env = new HashMap<>();
-        env.put("VIRTUAL_ENV", getToolsVenvPath().toString());
-        String existingPath = System.getenv("PATH");
-        env.put("PATH", getVenvBinDir() + (existingPath == null ? "" : File.pathSeparator + existingPath));
-        CommandRunnerUtil.run(getWorkPath(), Arrays.asList(cmd), env);
+        runInVenv(getToolsVenvPath(), cmd);
     }
 
     protected void runInVenv(List<String> cmd) throws MojoExecutionException {
         runInVenv(cmd.toArray(new String[0]));
     }
 
+    /** Run a command in the clean project venv (only the project's own deps). */
     protected void runInProjectVenv(String... cmd) throws MojoExecutionException {
-        String binDir = System.getProperty("os.name").toLowerCase().contains("win") ? "Scripts" : "bin";
-        Path projectBinDir = getProjectVenvPath().resolve(binDir);
+        runInVenv(getProjectVenvPath(), cmd);
+    }
+
+    /**
+     * Run a command in the project work directory with the given venv
+     * "activated" via VIRTUAL_ENV and PATH, and the executable resolved to its
+     * absolute path inside the venv's bin/Scripts directory. ProcessBuilder
+     * resolves a bare program name against the JVM's own PATH rather than the
+     * PATH set here, so the absolute path is what makes venv-only tools like
+     * ruff or pytest runnable. A command that already carries a path is left
+     * untouched, since Path.resolve returns an absolute argument unchanged.
+     */
+    private void runInVenv(Path venvPath, String... cmd) throws MojoExecutionException {
+        Path binDir = venvBinDir(venvPath);
         Map<String, String> env = new HashMap<>();
-        env.put("VIRTUAL_ENV", getProjectVenvPath().toString());
+        env.put("VIRTUAL_ENV", venvPath.toString());
         String existingPath = System.getenv("PATH");
-        env.put("PATH", projectBinDir + (existingPath == null ? "" : File.pathSeparator + existingPath));
-        CommandRunnerUtil.run(getWorkPath(), Arrays.asList(cmd), env);
+        env.put("PATH", binDir + (existingPath == null ? "" : File.pathSeparator + existingPath));
+        List<String> command = new ArrayList<>(Arrays.asList(cmd));
+        command.set(0, binDir.resolve(command.get(0)).toString());
+        CommandRunnerUtil.run(getWorkPath(), command, env);
     }
 
 }
