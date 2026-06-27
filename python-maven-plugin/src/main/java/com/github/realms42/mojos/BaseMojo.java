@@ -1,9 +1,7 @@
 package com.github.realms42.mojos;
 
 import java.io.File;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -56,39 +54,15 @@ abstract class BaseMojo extends AbstractMojo {
     /**
      * Run a command in the project work directory with the venv "activated" via
      * VIRTUAL_ENV and PATH environment variables. The first PATH entry is the
-     * venv's bin/Scripts directory so child processes inherit the venv.
-     *
-     * <p>The executable itself is resolved to the venv's bin/Scripts directory
-     * when a copy exists there. {@link ProcessBuilder} looks up bare command
-     * names against the JVM's own PATH rather than the PATH placed in its
-     * environment map, so a plain name like "ruff" or "pytest" would otherwise
-     * not be found even though it lives in the venv.
+     * venv's bin/Scripts directory, so plain executable names like "ruff" or
+     * "pytest" resolve to the venv's copies.
      */
     protected void runInVenv(String... cmd) throws MojoExecutionException {
         Map<String, String> env = new HashMap<>();
         env.put("VIRTUAL_ENV", getToolsVenvPath().toString());
         String existingPath = System.getenv("PATH");
         env.put("PATH", getVenvBinDir() + (existingPath == null ? "" : File.pathSeparator + existingPath));
-        CommandRunnerUtil.run(getWorkPath(), resolveVenvExecutable(cmd), env);
-    }
-
-    /**
-     * Replace a bare executable name with its absolute path inside the venv's
-     * bin/Scripts directory when present. Commands that already specify a path
-     * are left untouched.
-     */
-    private List<String> resolveVenvExecutable(String... cmd) {
-        List<String> resolved = new ArrayList<>(Arrays.asList(cmd));
-        if (!resolved.isEmpty()) {
-            String program = resolved.get(0);
-            if (!program.contains("/") && !program.contains("\\")) {
-                Path candidate = getVenvBinDir().resolve(program);
-                if (Files.isExecutable(candidate)) {
-                    resolved.set(0, candidate.toString());
-                }
-            }
-        }
-        return resolved;
+        CommandRunnerUtil.run(getWorkPath(), Arrays.asList(cmd), env);
     }
 
     protected void runInVenv(List<String> cmd) throws MojoExecutionException {
