@@ -72,12 +72,11 @@ abstract class BaseMojo extends AbstractMojo {
 
     /**
      * Run a command in the project work directory with the given venv
-     * "activated" via VIRTUAL_ENV and PATH, and the executable resolved to its
-     * absolute path inside the venv's bin/Scripts directory. ProcessBuilder
-     * resolves a bare program name against the JVM's own PATH rather than the
-     * PATH set here, so the absolute path is what makes venv-only tools like
-     * ruff or pytest runnable. A command that already carries a path is left
-     * untouched, since Path.resolve returns an absolute argument unchanged.
+     * "activated" via VIRTUAL_ENV and PATH. The program (the first element) is
+     * prefixed with the venv's bin/Scripts directory; the remaining arguments
+     * are passed through unchanged. ProcessBuilder resolves a bare program name
+     * against the JVM's own PATH rather than the PATH set here, so the venv
+     * prefix is what makes venv-only tools like ruff or pytest runnable.
      */
     private void runInVenv(Path venvPath, String... cmd) throws MojoExecutionException {
         Path binDir = venvBinDir(venvPath);
@@ -85,8 +84,9 @@ abstract class BaseMojo extends AbstractMojo {
         env.put("VIRTUAL_ENV", venvPath.toString());
         String existingPath = System.getenv("PATH");
         env.put("PATH", binDir + (existingPath == null ? "" : File.pathSeparator + existingPath));
-        List<String> command = new ArrayList<>(Arrays.asList(cmd));
-        command.set(0, binDir.resolve(command.get(0)).toString());
+        List<String> command = new ArrayList<>();
+        command.add(binDir.resolve(cmd[0]).toString());
+        command.addAll(Arrays.asList(cmd).subList(1, cmd.length));
         CommandRunnerUtil.run(getWorkPath(), command, env);
     }
 
