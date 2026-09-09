@@ -15,22 +15,18 @@
     <description>Example package built by the python-maven-plugin</description>
 
     <build>
-        <!--
-            Loading the plugin as a build extension is what makes <packaging>python</packaging>
-            resolvable: an extension is read while the POM is still being built, so the plugin's
-            META-INF/plexus/components.xml can register the "python" artifact handler and the
-            lifecycle that binds copy-sources, generate-pyproject, setup-env, build, lint, format,
-            test and package to their phases. A plain <plugin> entry is read too late for that,
-            and the build fails with "Unknown packaging: python".
-
-            Consuming projects need this block and nothing else — the goals come with it.
-        -->
-        <extensions>
-            <extension>
+        <plugins>
+            <plugin>
                 <groupId>com.github.realms42</groupId>
                 <artifactId>python-maven-plugin</artifactId>
                 <version>1.0.0-SNAPSHOT</version>
-            </extension>
-        </extensions>
+                <!--
+                    Loads the plugin's components.xml, which registers the "python" artifact
+                    handler and the lifecycle binding its goals to phases. Without it,
+                    <packaging>python</packaging> is unknown to Maven.
+                -->
+                <extensions>true</extensions>
+            </plugin>
+        </plugins>
     </build>
 </project>
