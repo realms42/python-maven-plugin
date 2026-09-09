@@ -35,10 +35,18 @@ import com.github.realms42.mojos.base.AbstractPythonMojo;
  *   <goals><goal>publish</goal></goals>
  *   <configuration>
  *     <serverId>internal-pypi</serverId>
- *     <repositoryUrl>https://artifactory.example.com/artifactory/api/pypi/pypi-local/</repositoryUrl>
+ *     <repositoryUrl>https://artifactory.example.com/artifactory/api/pypi/pypi-release-local/</repositoryUrl>
+ *     <snapshotRepositoryUrl>https://artifactory.example.com/artifactory/api/pypi/pypi-snapshot-local/</snapshotRepositoryUrl>
  *   </configuration>
  * </execution>
  * }</pre>
+ *
+ * <p>Releases and snapshots go to separate repositories, mirroring Maven's own
+ * split between {@code <repository>} and {@code <snapshotRepository>}. An index
+ * treats a version as immutable, so a snapshot — which keeps the same PEP 440
+ * version on every build — can only be republished where overwriting is
+ * allowed. Keeping the two apart means a snapshot can never land in the
+ * repository that is supposed to be immutable.
  *
  * <p>Credentials come from the matching {@code <server>} in settings.xml and are
  * passed to twine through the environment, never as arguments.
@@ -56,13 +64,25 @@ public class PublishMojo extends AbstractPythonMojo {
     private SettingsDecrypter settingsDecrypter;
 
     /**
-     * Index to upload to, for example
-     * {@code https://artifactory.example.com/artifactory/api/pypi/pypi-local/}.
-     * Required: without it twine would default to public PyPI, which is not a
-     * mistake worth making by accident.
+     * Index that release versions are uploaded to, for example
+     * {@code https://artifactory.example.com/artifactory/api/pypi/pypi-release-local/}.
+     * Required to publish a release: without it twine would default to public
+     * PyPI, which is not a mistake worth making by accident.
+     *
+     * <p>Note this has to be a concrete repository. A virtual repository can
+     * aggregate several for resolution, but is not a valid upload target.
      */
     @Parameter(property = "python.publish.url")
     private String repositoryUrl;
+
+    /**
+     * Index that SNAPSHOT versions are uploaded to, which should be one that
+     * permits redeployment. Leave it unset to publish releases only: a snapshot
+     * build then does nothing rather than falling back to the release
+     * repository.
+     */
+    @Parameter(property = "python.publish.snapshotUrl")
+    private String snapshotRepositoryUrl;
 
     /** id of the {@code <server>} in settings.xml holding the credentials. */
     @Parameter(property = "python.publish.serverId")
@@ -70,14 +90,6 @@ public class PublishMojo extends AbstractPythonMojo {
 
     @Parameter(property = "python.publish.skip", defaultValue = "false")
     private boolean skipPublish;
-
-    /**
-     * Whether to publish SNAPSHOT versions. Off by default: a Maven SNAPSHOT maps
-     * to the same PEP 440 version on every build, and package indexes treat a
-     * version as immutable, so republishing collides.
-     */
-    @Parameter(property = "python.publish.snapshots", defaultValue = "false")
-    private boolean publishSnapshots;
 
     /**
      * Pass --skip-existing, so re-publishing an existing version is not an error.
@@ -96,14 +108,9 @@ public class PublishMojo extends AbstractPythonMojo {
             getLog().info("Publishing skipped.");
             return;
         }
-        if (isSnapshot() && !publishSnapshots) {
-            getLog().info("Not publishing " + version + ": snapshots are excluded."
-                    + " Set publishSnapshots to include them.");
+        String target = targetRepository();
+        if (target == null) {
             return;
-        }
-        if (repositoryUrl == null || repositoryUrl.trim().isEmpty()) {
-            throw new MojoExecutionException("repositoryUrl is required, so that a publish cannot"
-                    + " reach public PyPI by defaulting there.");
         }
 
         List<Path> distributions = distributions();
@@ -120,8 +127,33 @@ public class PublishMojo extends AbstractPythonMojo {
         }
 
         runInVenv(command("twine", "check", files));
-        runInVenv(command("twine", "upload", uploadOptions(files)), credentials());
-        getLog().info("Published " + distributions.size() + " distribution(s) to " + repositoryUrl);
+        runInVenv(command("twine", "upload", uploadOptions(target, files)), credentials());
+        getLog().info("Published " + distributions.size() + " distribution(s) to " + target);
+    }
+
+    /**
+     * The index this version belongs in, or null if there is nowhere to publish
+     * it. A snapshot with no snapshot repository configured is skipped rather
+     * than diverted to the release repository.
+     */
+    private String targetRepository() throws MojoExecutionException {
+        if (isSnapshot()) {
+            if (isBlank(snapshotRepositoryUrl)) {
+                getLog().info("Not publishing " + version + ": no snapshotRepositoryUrl is set,"
+                        + " and snapshots are never sent to the release repository.");
+                return null;
+            }
+            return snapshotRepositoryUrl;
+        }
+        if (isBlank(repositoryUrl)) {
+            throw new MojoExecutionException("repositoryUrl is required to publish " + version
+                    + ", so that a publish cannot reach public PyPI by defaulting there.");
+        }
+        return repositoryUrl;
+    }
+
+    private static boolean isBlank(String value) {
+        return value == null || value.trim().isEmpty();
     }
 
     private boolean isSnapshot() {
@@ -147,10 +179,10 @@ public class PublishMojo extends AbstractPythonMojo {
         }
     }
 
-    private List<String> uploadOptions(List<String> files) {
+    private List<String> uploadOptions(String target, List<String> files) {
         List<String> options = new ArrayList<>();
         options.add("--repository-url");
-        options.add(repositoryUrl);
+        options.add(target);
         if (skipExisting) {
             options.add("--skip-existing");
         }
