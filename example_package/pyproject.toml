@@ -1,6 +1,6 @@
 [build-system]
-requires = ["setuptools>=61"]
-build-backend = "setuptools.build_meta"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
 [project]
 name = "example-project"
@@ -12,8 +12,10 @@ requires-python = ">=3.9"
 # list when it writes the work copy.
 dynamic = ["version"]
 
-[tool.setuptools.packages.find]
-where = ["src"]
+# The distribution is named example-project but the package directory is
+# example_package, so hatchling cannot infer it from the name.
+[tool.hatch.build.targets.wheel]
+packages = ["src/example_package"]
 
 [tool.ruff]
 line-length = 100

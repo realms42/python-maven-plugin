@@ -3,6 +3,10 @@ package com.github.realms42.mojos;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
+import java.util.Optional;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugins.annotations.LifecyclePhase;
@@ -22,7 +26,7 @@ import com.github.realms42.mojos.base.AbstractPythonMojo;
  * <p>The project's own pyproject.toml is the source of truth: it is read from
  * the project root, given the Maven-derived version, and written to the work
  * directory. The file on disk is never modified. Projects without one get a
- * minimal generated file so a plain POM still builds.
+ * minimal generated file, backed by hatchling, so a plain POM still builds.
  *
  * <p>The Maven version is only applied to a project that opts in with PEP 621
  * dynamic versioning ({@code dynamic = ["version"]}). A file that pins a
@@ -33,6 +37,7 @@ import com.github.realms42.mojos.base.AbstractPythonMojo;
 public class PyProjectMojo extends AbstractPythonMojo {
 
     private static final String PYPROJECT = "pyproject.toml";
+    private static final String BACKEND = "hatchling";
     private static final ObjectMapper TOML = new ObjectMapper(new TomlFactory());
 
     @Parameter(defaultValue = "${project.artifactId}", readonly = true)
@@ -46,11 +51,13 @@ public class PyProjectMojo extends AbstractPythonMojo {
         Path source = basePath.toPath().resolve(PYPROJECT);
         boolean isNative = Files.exists(source);
 
-        ObjectNode root = isNative ? read(source) : TOML.createObjectNode();
+        ObjectNode root;
         if (isNative) {
             getLog().info("Using " + source);
+            root = read(source);
         } else {
             getLog().info("No " + PYPROJECT + " in " + basePath + "; generating a minimal one.");
+            root = generate();
         }
 
         ObjectNode project = (ObjectNode) root.get("project");
@@ -62,6 +69,47 @@ public class PyProjectMojo extends AbstractPythonMojo {
         applyVersion(project, isNative ? source.toString() : "The generated " + PYPROJECT);
 
         write(root);
+    }
+
+    /**
+     * Build the pyproject.toml for a project that does not ship one. The backend
+     * has to be declared explicitly: without a [build-system] table, PEP 517
+     * falls back to legacy setuptools behaviour.
+     */
+    private ObjectNode generate() {
+        ObjectNode root = TOML.createObjectNode();
+        ObjectNode buildSystem = root.putObject("build-system");
+        buildSystem.set("requires", TOML.createArrayNode().add(BACKEND));
+        buildSystem.put("build-backend", BACKEND + ".build");
+
+        // Hatchling looks for a package directory named after the distribution, so a
+        // project whose directory differs — anything with a hyphen in its artifactId,
+        // for one — has to be told where its package lives.
+        findSolePackage().ifPresent(name -> root.putObject("tool")
+                .putObject("hatch")
+                .putObject("build")
+                .putObject("targets")
+                .putObject("wheel")
+                .set("packages", TOML.createArrayNode().add("src/" + name)));
+        return root;
+    }
+
+    /** The single package directory under work/src, if there is exactly one. */
+    private Optional<String> findSolePackage() {
+        Path src = getWorkPath().resolve("src");
+        if (!Files.isDirectory(src)) {
+            return Optional.empty();
+        }
+        try (Stream<Path> entries = Files.list(src)) {
+            List<String> names = entries.filter(Files::isDirectory)
+                    .map(p -> p.getFileName().toString())
+                    .filter(n -> !n.startsWith(".") && !n.endsWith(".egg-info") && !n.equals("__pycache__"))
+                    .collect(Collectors.toList());
+            return names.size() == 1 ? Optional.of(names.get(0)) : Optional.empty();
+        } catch (IOException e) {
+            getLog().debug("Could not inspect " + src + ": " + e.getMessage());
+            return Optional.empty();
+        }
     }
 
     private ObjectNode read(Path source) throws MojoExecutionException {
