@@ -22,6 +22,13 @@ abstract class BaseMojo extends AbstractMojo {
     @Parameter(defaultValue = "${project.basedir}", readonly = true)
     protected File basePath;
 
+    /**
+     * Interpreter used to create the venvs and to drive tools that are invoked as
+     * {@code python -m ...}. Declared once here so every goal agrees on it.
+     */
+    @Parameter(defaultValue = "python3")
+    protected String python;
+
     protected Path getPythonMavenPath() {
         return buildDir.toPath().resolve("python-maven-plugin");
     }
@@ -58,35 +65,49 @@ abstract class BaseMojo extends AbstractMojo {
 
     /** Run a command in the plugin tools venv (ruff, pytest, build). */
     protected void runInVenv(String program, String... args) throws MojoExecutionException {
-        runInVenv(getToolsVenvPath(), program, args);
+        runInVenv(getToolsVenvPath(), commandOf(program, args));
+    }
+
+    /** Run a pre-assembled command — program name first — in the plugin tools venv. */
+    protected void runInVenv(List<String> command) throws MojoExecutionException {
+        runInVenv(getToolsVenvPath(), command);
     }
 
     /** Run a command in the clean project venv (only the project's own deps). */
     protected void runInProjectVenv(String program, String... args) throws MojoExecutionException {
-        runInVenv(getProjectVenvPath(), program, args);
+        runInVenv(getProjectVenvPath(), commandOf(program, args));
+    }
+
+    private static List<String> commandOf(String program, String... args) {
+        List<String> command = new ArrayList<>();
+        command.add(program);
+        command.addAll(Arrays.asList(args));
+        return command;
     }
 
     /**
-     * Run a bare venv command in the project work directory. {@code program} is a
-     * plain executable name such as "ruff" or "pytest"; it is run from the given
-     * venv's bin/Scripts directory, with {@code args} passed through unchanged.
-     * The venv is also "activated" via VIRTUAL_ENV and PATH.
+     * Run a bare venv command in the project work directory. The first element of
+     * {@code command} is a plain executable name such as "ruff" or "pytest"; it is
+     * run from the given venv's bin/Scripts directory, with the remaining elements
+     * passed through unchanged. The venv is also "activated" via VIRTUAL_ENV and PATH.
      *
      * <p>ProcessBuilder resolves a bare name against the JVM's own PATH rather
      * than the PATH set here, so pinning the program to the venv's bin dir is
      * what makes venv-only tools runnable. This intentionally supports bare
      * commands only — callers pass the tool name, never a path to it.
      */
-    private void runInVenv(Path venvPath, String program, String... args) throws MojoExecutionException {
+    private void runInVenv(Path venvPath, List<String> command) throws MojoExecutionException {
+        if (command.isEmpty()) {
+            throw new MojoExecutionException("No command given to run in " + venvPath);
+        }
         Path binDir = venvBinDir(venvPath);
         Map<String, String> env = new HashMap<>();
         env.put("VIRTUAL_ENV", venvPath.toString());
         String existingPath = System.getenv("PATH");
         env.put("PATH", binDir + (existingPath == null ? "" : File.pathSeparator + existingPath));
-        List<String> command = new ArrayList<>();
-        command.add(binDir.resolve(program).toString());
-        command.addAll(Arrays.asList(args));
-        CommandRunnerUtil.run(getWorkPath(), command, env);
+        List<String> resolved = new ArrayList<>(command);
+        resolved.set(0, binDir.resolve(command.get(0)).toString());
+        CommandRunnerUtil.run(getWorkPath(), resolved, env);
     }
 
 }

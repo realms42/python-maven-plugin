@@ -1,52 +1,49 @@
 package com.github.realms42.mojos;
 
 import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
-import org.apache.maven.plugins.annotations.Parameter;
 
 import com.github.realms42.util.CommandRunnerUtil;
 
 @Mojo(name = "setup-env", defaultPhase = LifecyclePhase.GENERATE_RESOURCES)
 public class SetupEnvMojo extends BaseMojo {
 
-    @Parameter(defaultValue = "python3")
-    private String python;
+    private static final List<String> PIP_INSTALL = Arrays.asList(
+            "-m", "pip", "install", "--quiet", "--disable-pip-version-check");
 
     @Override
     public void execute() throws MojoExecutionException {
-        setupProjectVenv();
-        setupToolsVenv();
-    }
-
-    private void setupProjectVenv() throws MojoExecutionException {
-        if (!Files.exists(getProjectVenvPath())) {
-            CommandRunnerUtil.run(getWorkPath(),
-                    Arrays.asList(python, "-m", "venv", getProjectVenvPath().toString()));
-            getLog().info("Created project venv at " + getProjectVenvPath());
-        } else {
-            getLog().info("Reusing project venv at " + getProjectVenvPath());
-        }
-        runInProjectVenv(python, "-m", "pip", "install", "--quiet",
-                "--disable-pip-version-check", "-e", ".");
+        createVenv(getProjectVenvPath(), "project");
+        runInProjectVenv(python, pipInstall("-e", "."));
         getLog().info("Project venv ready (clean runtime environment)");
+
+        createVenv(getToolsVenvPath(), "tools");
+        runInVenv(python, pipInstall("build", "pytest", "ruff"));
+        runInVenv(python, pipInstall("-e", "."));
+        getLog().info("Tools venv ready (build, pytest, ruff + project editable install)");
     }
 
-    private void setupToolsVenv() throws MojoExecutionException {
-        if (!Files.exists(getToolsVenvPath())) {
-            CommandRunnerUtil.run(getWorkPath(),
-                    Arrays.asList(python, "-m", "venv", getToolsVenvPath().toString()));
-            getLog().info("Created tools venv at " + getToolsVenvPath());
-        } else {
-            getLog().info("Reusing tools venv at " + getToolsVenvPath());
+    /** Create {@code venvPath} if it is not already there. */
+    private void createVenv(Path venvPath, String label) throws MojoExecutionException {
+        if (Files.exists(venvPath)) {
+            getLog().info("Reusing " + label + " venv at " + venvPath);
+            return;
         }
-        runInVenv(python, "-m", "pip", "install", "--quiet",
-                "--disable-pip-version-check", "build", "pytest", "ruff");
-        runInVenv(python, "-m", "pip", "install", "--quiet",
-                "--disable-pip-version-check", "-e", ".");
-        getLog().info("Tools venv ready (build, pytest, ruff + project editable install)");
+        CommandRunnerUtil.run(getWorkPath(), Arrays.asList(python, "-m", "venv", venvPath.toString()));
+        getLog().info("Created " + label + " venv at " + venvPath);
+    }
+
+    /** Arguments for a quiet {@code python -m pip install} of the given targets. */
+    private static String[] pipInstall(String... targets) {
+        List<String> args = new ArrayList<>(PIP_INSTALL);
+        args.addAll(Arrays.asList(targets));
+        return args.toArray(new String[0]);
     }
 }

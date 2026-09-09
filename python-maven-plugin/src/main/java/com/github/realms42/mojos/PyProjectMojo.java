@@ -2,7 +2,6 @@ package com.github.realms42.mojos;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.dataformat.toml.TomlFactory;
 
@@ -19,6 +18,9 @@ import java.util.Map;
 @Mojo(name = "generate-pyproject", defaultPhase = LifecyclePhase.GENERATE_SOURCES)
 public class PyProjectMojo extends BaseMojo {
 
+    private static final ObjectMapper TOML = new ObjectMapper(new TomlFactory());
+    private static final ObjectMapper JSON = new ObjectMapper();
+
     @Parameter(defaultValue = "${project.artifactId}", readonly = true)
     private String artifactId;
 
@@ -30,20 +32,14 @@ public class PyProjectMojo extends BaseMojo {
 
     @Override
     public void execute() throws MojoExecutionException {
-        ObjectMapper tomlMapper = new ObjectMapper(new TomlFactory());
-        JsonNode userProject = pyProject != null
-                ? tomlMapper.valueToTree(pyProject)
-                : tomlMapper.createObjectNode();
-        JsonNode finalProject = injectProjectMetadata(userProject);
-        writePyProject(finalProject);
+        JsonNode userProject = pyProject != null ? TOML.valueToTree(pyProject) : TOML.createObjectNode();
+        writePyProject(injectProjectMetadata(userProject));
     }
 
     private void writePyProject(JsonNode node) throws MojoExecutionException {
-        ObjectMapper tomlMapper = new ObjectMapper(new TomlFactory());
-        ObjectMapper jsonMapper = new ObjectMapper();
         try {
-            String tomlContent = tomlMapper.writerWithDefaultPrettyPrinter().writeValueAsString(node);
-            getLog().info("toml content: \n" + jsonMapper.writerWithDefaultPrettyPrinter().writeValueAsString(node));
+            String tomlContent = TOML.writerWithDefaultPrettyPrinter().writeValueAsString(node);
+            getLog().info("toml content: \n" + JSON.writerWithDefaultPrettyPrinter().writeValueAsString(node));
             Path pyProjectPath = getWorkPath().resolve("pyproject.toml");
             Files.writeString(pyProjectPath, tomlContent);
         } catch (IOException e) {
@@ -54,29 +50,27 @@ public class PyProjectMojo extends BaseMojo {
 
     private JsonNode injectProjectMetadata(JsonNode node) {
         ObjectNode copy = (ObjectNode) node.deepCopy();
-        copy.putIfAbsent("project", new ObjectNode(new JsonNodeFactory(false)));
+        copy.putIfAbsent("project", TOML.createObjectNode());
         ObjectNode project = (ObjectNode) copy.get("project");
 
-        String defaultName = artifactId;
-        String defaultVersion = versionToPep440(version);
-
-        if (project.has("name")) {
-            getLog().warn("[project].name is user-configured as '" + project.get("name").asText()
-                    + "'; this overrides the recommended value '" + defaultName + "' derived from Maven artifactId."
-                    + " Overriding is not recommended.");
-        } else {
-            project.put("name", defaultName);
-        }
-
-        if (project.has("version")) {
-            getLog().warn("[project].version is user-configured as '" + project.get("version").asText()
-                    + "'; this overrides the recommended value '" + defaultVersion + "' derived from Maven version."
-                    + " Overriding is not recommended.");
-        } else {
-            project.put("version", defaultVersion);
-        }
+        applyDerivedDefault(project, "name", artifactId, "artifactId");
+        applyDerivedDefault(project, "version", versionToPep440(version), "version");
 
         return copy;
+    }
+
+    /**
+     * Fill in a {@code [project]} field derived from the Maven POM, leaving any
+     * user-configured value in place with a warning.
+     */
+    private void applyDerivedDefault(ObjectNode project, String field, String derived, String mavenSource) {
+        if (project.has(field)) {
+            getLog().warn("[project]." + field + " is user-configured as '" + project.get(field).asText()
+                    + "'; this overrides the recommended value '" + derived + "' derived from Maven " + mavenSource + "."
+                    + " Overriding is not recommended.");
+        } else {
+            project.put(field, derived);
+        }
     }
 
     private String versionToPep440(String mavenVersion) {

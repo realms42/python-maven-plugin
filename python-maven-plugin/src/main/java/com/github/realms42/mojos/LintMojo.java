@@ -1,23 +1,30 @@
 package com.github.realms42.mojos;
 
-import org.apache.maven.plugin.MojoExecutionException;
+import java.util.Arrays;
+import java.util.List;
+
 import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
 
 @Mojo(name = "lint", defaultPhase = LifecyclePhase.TEST)
-public class LintMojo extends BaseMojo {
+public class LintMojo extends VenvCommandMojo {
 
     @Parameter(property = "python.lint.skip", defaultValue = "false")
     private boolean skipLint;
 
     @Override
-    public void execute() throws MojoExecutionException {
-        if (skipLint) {
-            getLog().info("Linting skipped.");
-            return;
-        }
-        runInVenv("ruff", "check", ".");
-        getLog().info("Linting check completed.");
+    protected List<String> command() {
+        return Arrays.asList("ruff", "check", ".");
+    }
+
+    @Override
+    protected String label() {
+        return "Linting";
+    }
+
+    @Override
+    protected boolean isSkipped() {
+        return skipLint;
     }
 }

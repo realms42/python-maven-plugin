@@ -1,18 +1,21 @@
 package com.github.realms42.mojos;
 
-import org.apache.maven.plugin.MojoExecutionException;
+import java.util.Arrays;
+import java.util.List;
+
 import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
-import org.apache.maven.plugins.annotations.Parameter;
 
 @Mojo(name = "build", defaultPhase = LifecyclePhase.COMPILE)
-public class BuildMojo extends BaseMojo {
-
-    @Parameter(defaultValue = "python3")
-    private String python;
+public class BuildMojo extends VenvCommandMojo {
 
     @Override
-    public void execute() throws MojoExecutionException {
-        runInVenv(python, "-m", "build", "--outdir", getBuildPath().toString());
+    protected List<String> command() {
+        return Arrays.asList(python, "-m", "build", "--outdir", getBuildPath().toString());
+    }
+
+    @Override
+    protected String label() {
+        return "Build";
     }
 }

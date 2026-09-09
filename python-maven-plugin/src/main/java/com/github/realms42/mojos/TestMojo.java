@@ -1,12 +1,14 @@
 package com.github.realms42.mojos;
 
-import org.apache.maven.plugin.MojoExecutionException;
+import java.util.Collections;
+import java.util.List;
+
 import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
 
 @Mojo(name = "test", defaultPhase = LifecyclePhase.TEST)
-public class TestMojo extends BaseMojo {
+public class TestMojo extends VenvCommandMojo {
 
     @Parameter(defaultValue = "pytest")
     private String tester;
@@ -15,12 +17,17 @@ public class TestMojo extends BaseMojo {
     private boolean skipTests;
 
     @Override
-    public void execute() throws MojoExecutionException {
-        if (skipTests) {
-            getLog().info("Tests skipped.");
-            return;
-        }
-        runInVenv(tester);
-        getLog().info("Testing completed with " + tester);
+    protected List<String> command() {
+        return Collections.singletonList(tester);
+    }
+
+    @Override
+    protected String label() {
+        return "Tests";
+    }
+
+    @Override
+    protected boolean isSkipped() {
+        return skipTests;
     }
 }
