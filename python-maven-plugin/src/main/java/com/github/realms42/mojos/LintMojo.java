@@ -7,8 +7,10 @@ import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
 
+import com.github.realms42.mojos.base.AbstractVenvCommandMojo;
+
 @Mojo(name = "lint", defaultPhase = LifecyclePhase.TEST)
-public class LintMojo extends VenvCommandMojo {
+public class LintMojo extends AbstractVenvCommandMojo {
 
     @Parameter(property = "python.lint.skip", defaultValue = "false")
     private boolean skipLint;

@@ -7,10 +7,11 @@ import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
 
+import com.github.realms42.mojos.base.AbstractPythonMojo;
 import com.github.realms42.util.FileCopyUtil;
 
 @Mojo(name = "package", defaultPhase = LifecyclePhase.PACKAGE)
-public class PackageMojo extends BaseMojo {
+public class PackageMojo extends AbstractPythonMojo {
 
     @Override
     public void execute() throws MojoExecutionException {

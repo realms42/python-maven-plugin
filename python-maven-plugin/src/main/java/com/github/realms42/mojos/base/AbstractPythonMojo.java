@@ -1,4 +1,4 @@
-package com.github.realms42.mojos;
+package com.github.realms42.mojos.base;
 
 import java.io.File;
 import java.nio.file.Path;
@@ -14,7 +14,15 @@ import org.apache.maven.plugins.annotations.Parameter;
 
 import com.github.realms42.util.CommandRunnerUtil;
 
-abstract class BaseMojo extends AbstractMojo {
+/**
+ * Common ground for every goal in this plugin: the layout of the build
+ * directory, the two virtual environments, and the ability to run a tool
+ * inside one of them.
+ *
+ * <p>Goals that do nothing but run a single tool should extend
+ * {@link AbstractVenvCommandMojo} instead of this class directly.
+ */
+public abstract class AbstractPythonMojo extends AbstractMojo {
 
     @Parameter(defaultValue = "${project.build.directory}", readonly = true)
     protected File buildDir;
@@ -52,10 +60,6 @@ abstract class BaseMojo extends AbstractMojo {
      */
     protected Path getToolsVenvPath() {
         return getPythonMavenPath().resolve("tools");
-    }
-
-    protected Path getVenvBinDir() {
-        return venvBinDir(getToolsVenvPath());
     }
 
     private static Path venvBinDir(Path venvPath) {

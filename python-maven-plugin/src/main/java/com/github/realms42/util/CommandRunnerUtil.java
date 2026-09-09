@@ -7,7 +7,11 @@ import java.util.Map;
 
 import org.apache.maven.plugin.MojoExecutionException;
 
-public class CommandRunnerUtil {
+public final class CommandRunnerUtil {
+
+    private CommandRunnerUtil() {
+    }
+
     public static void run(Path workPath, List<String> cmd) throws MojoExecutionException {
         run(workPath, cmd, null);
     }

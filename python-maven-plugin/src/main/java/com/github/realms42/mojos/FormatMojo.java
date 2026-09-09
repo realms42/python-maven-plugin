@@ -7,8 +7,10 @@ import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
 
+import com.github.realms42.mojos.base.AbstractVenvCommandMojo;
+
 @Mojo(name = "format", defaultPhase = LifecyclePhase.TEST)
-public class FormatMojo extends VenvCommandMojo {
+public class FormatMojo extends AbstractVenvCommandMojo {
 
     @Parameter(property = "python.format.skip", defaultValue = "false")
     private boolean skipFormat;

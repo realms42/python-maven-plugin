@@ -7,8 +7,10 @@ import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
 
+import com.github.realms42.mojos.base.AbstractVenvCommandMojo;
+
 @Mojo(name = "test", defaultPhase = LifecyclePhase.TEST)
-public class TestMojo extends VenvCommandMojo {
+public class TestMojo extends AbstractVenvCommandMojo {
 
     @Parameter(defaultValue = "pytest")
     private String tester;

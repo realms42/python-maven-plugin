@@ -10,10 +10,11 @@ import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
 
+import com.github.realms42.mojos.base.AbstractPythonMojo;
 import com.github.realms42.util.CommandRunnerUtil;
 
 @Mojo(name = "setup-env", defaultPhase = LifecyclePhase.GENERATE_RESOURCES)
-public class SetupEnvMojo extends BaseMojo {
+public class SetupEnvMojo extends AbstractPythonMojo {
 
     private static final List<String> PIP_INSTALL = Arrays.asList(
             "-m", "pip", "install", "--quiet", "--disable-pip-version-check");

@@ -11,10 +11,11 @@ import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
 
+import com.github.realms42.mojos.base.AbstractPythonMojo;
 import com.github.realms42.util.FileCopyUtil;
 
 @Mojo(name = "copy-sources", defaultPhase = LifecyclePhase.INITIALIZE)
-public class SourceCopyMojo extends BaseMojo {
+public class SourceCopyMojo extends AbstractPythonMojo {
 
     @Parameter
     private List<String> sourcePaths = Arrays.asList("src", "tests");

@@ -1,4 +1,4 @@
-package com.github.realms42.mojos;
+package com.github.realms42.mojos.base;
 
 import java.util.List;
 
@@ -12,7 +12,7 @@ import org.apache.maven.plugin.MojoExecutionException;
  * however, share their entire body: a subclass only declares its goal
  * annotation, its own parameters, and the three hooks below.
  */
-abstract class VenvCommandMojo extends BaseMojo {
+public abstract class AbstractVenvCommandMojo extends AbstractPythonMojo {
 
     /** The command to run: the venv program name first, then its arguments. */
     protected abstract List<String> command();

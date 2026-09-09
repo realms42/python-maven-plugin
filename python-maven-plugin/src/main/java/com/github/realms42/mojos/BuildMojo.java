@@ -6,8 +6,10 @@ import java.util.List;
 import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
 
+import com.github.realms42.mojos.base.AbstractVenvCommandMojo;
+
 @Mojo(name = "build", defaultPhase = LifecyclePhase.COMPILE)
-public class BuildMojo extends VenvCommandMojo {
+public class BuildMojo extends AbstractVenvCommandMojo {
 
     @Override
     protected List<String> command() {
