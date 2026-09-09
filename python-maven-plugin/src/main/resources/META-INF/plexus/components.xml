@@ -6,7 +6,7 @@
             <implementation>org.apache.maven.artifact.handler.DefaultArtifactHandler</implementation>
             <configuration>
                 <type>python</type>
-                <extension>whl</extension>
+                <extension>tar.gz</extension>
                 <packaging>python</packaging>
             </configuration>
         </component>
