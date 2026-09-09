@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "example-project"
+description = "Example package built by the python-maven-plugin"
+requires-python = ">=3.9"
+
+# The Maven version drives the Python version. PEP 621 requires opting in to
+# that with dynamic; the plugin fills the value in and removes it from this
+# list when it writes the work copy.
+dynamic = ["version"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 100
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
