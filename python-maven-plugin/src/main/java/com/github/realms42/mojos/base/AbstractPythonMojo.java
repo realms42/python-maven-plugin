@@ -4,6 +4,7 @@ import java.io.File;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -69,17 +70,26 @@ public abstract class AbstractPythonMojo extends AbstractMojo {
 
     /** Run a command in the plugin tools venv (ruff, pytest, build). */
     protected void runInVenv(String program, String... args) throws MojoExecutionException {
-        runInVenv(getToolsVenvPath(), commandOf(program, args));
+        runInVenv(getToolsVenvPath(), commandOf(program, args), Collections.emptyMap());
     }
 
     /** Run a pre-assembled command — program name first — in the plugin tools venv. */
     protected void runInVenv(List<String> command) throws MojoExecutionException {
-        runInVenv(getToolsVenvPath(), command);
+        runInVenv(getToolsVenvPath(), command, Collections.emptyMap());
+    }
+
+    /**
+     * Run a command in the plugin tools venv with extra environment variables.
+     * Intended for secrets: anything passed here stays out of the argument list,
+     * which is echoed on failure and visible in the process table.
+     */
+    protected void runInVenv(List<String> command, Map<String, String> extraEnv) throws MojoExecutionException {
+        runInVenv(getToolsVenvPath(), command, extraEnv);
     }
 
     /** Run a command in the clean project venv (only the project's own deps). */
     protected void runInProjectVenv(String program, String... args) throws MojoExecutionException {
-        runInVenv(getProjectVenvPath(), commandOf(program, args));
+        runInVenv(getProjectVenvPath(), commandOf(program, args), Collections.emptyMap());
     }
 
     private static List<String> commandOf(String program, String... args) {
@@ -100,7 +110,8 @@ public abstract class AbstractPythonMojo extends AbstractMojo {
      * what makes venv-only tools runnable. This intentionally supports bare
      * commands only — callers pass the tool name, never a path to it.
      */
-    private void runInVenv(Path venvPath, List<String> command) throws MojoExecutionException {
+    private void runInVenv(Path venvPath, List<String> command, Map<String, String> extraEnv)
+            throws MojoExecutionException {
         if (command.isEmpty()) {
             throw new MojoExecutionException("No command given to run in " + venvPath);
         }
@@ -109,6 +120,7 @@ public abstract class AbstractPythonMojo extends AbstractMojo {
         env.put("VIRTUAL_ENV", venvPath.toString());
         String existingPath = System.getenv("PATH");
         env.put("PATH", binDir + (existingPath == null ? "" : File.pathSeparator + existingPath));
+        env.putAll(extraEnv);
         List<String> resolved = new ArrayList<>(command);
         resolved.set(0, binDir.resolve(command.get(0)).toString());
         CommandRunnerUtil.run(getWorkPath(), resolved, env);
