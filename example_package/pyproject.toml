@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "example-project"
+name = "example_package"
 description = "Example package built by the python-maven-plugin"
 requires-python = ">=3.9"
 
@@ -11,11 +11,6 @@ requires-python = ">=3.9"
 # that with dynamic; the plugin fills the value in and removes it from this
 # list when it writes the work copy.
 dynamic = ["version"]
-
-# The distribution is named example-project but the package directory is
-# example_package, so hatchling cannot infer it from the name.
-[tool.hatch.build.targets.wheel]
-packages = ["src/example_package"]
 
 [tool.ruff]
 line-length = 100

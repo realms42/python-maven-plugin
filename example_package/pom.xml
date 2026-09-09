@@ -5,7 +5,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>com.github.realms42</groupId>
-    <artifactId>example-project</artifactId>
+    <artifactId>example_package</artifactId>
     <version>1.0.0-SNAPSHOT</version>
 
     <!-- Supplied by the plugin below, not by Maven itself. -->
