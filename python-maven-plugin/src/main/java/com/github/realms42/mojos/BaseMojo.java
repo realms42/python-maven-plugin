@@ -22,9 +22,6 @@ public abstract class BaseMojo extends AbstractMojo {
     @Parameter(defaultValue = "${project.basedir}", readonly = true)
     protected File basePath;
 
-    @Parameter(defaultValue = "${project.artifactId}", readonly = true)
-    protected String artifactId;
-
     @Parameter(defaultValue = "${project.version}", readonly = true)
     protected String version;
 
@@ -51,7 +48,7 @@ public abstract class BaseMojo extends AbstractMojo {
         envOverrides.forEach(command::addEnvironment);
 
         StreamConsumer stdout = line -> getLog().info(line);
-        StreamConsumer stderr = line -> getLog().error(line);
+        StreamConsumer stderr = line -> getLog().info(line);
         try {
             getLog().info("Running command: " + command);
             int exitCode = CommandLineUtils.executeCommandLine(command, stdout, stderr);
