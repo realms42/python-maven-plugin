@@ -1,6 +1,10 @@
-FROM redhat/ubi10:10.1
+FROM redhat/ubi10:latest
 
-RUN dnf install -y maven python3 python3-pip && python3 -m pip install build twine
+RUN dnf update -y \
+    && dnf install -y maven python3 python3-pip \
+    && python3 -m pip install --no-cache-dir build twine \
+    && dnf clean all \
+    && rm -rf /var/cache/dnf
 
 WORKDIR /plugin
 COPY python-maven-plugin/pom.xml .

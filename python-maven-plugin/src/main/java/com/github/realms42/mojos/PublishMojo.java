@@ -79,22 +79,18 @@ public class PublishMojo extends BaseMojo {
 
     private String targetRepository() throws MojoExecutionException {
         if (isSnapshot()) {
-            if (isBlank(snapshotRepositoryUrl)) {
+            if (snapshotRepositoryUrl.isBlank()) {
                 getLog().info("Not publishing " + version + ": no snapshotRepositoryUrl is set,"
                         + " and snapshots are never sent to the release repository.");
                 return null;
             }
             return snapshotRepositoryUrl;
         }
-        if (isBlank(repositoryUrl)) {
+        if (repositoryUrl.isBlank()) {
             throw new MojoExecutionException("repositoryUrl is required to publish " + version
                     + ", so that a publish cannot reach public PyPI by defaulting there.");
         }
         return repositoryUrl;
-    }
-
-    private static boolean isBlank(String value) {
-        return value == null || value.trim().isEmpty();
     }
 
     private boolean isSnapshot() {
