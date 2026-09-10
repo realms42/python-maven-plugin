@@ -8,7 +8,6 @@
     <artifactId>example_package</artifactId>
     <version>1.0.0-SNAPSHOT</version>
 
-    <!-- Supplied by the plugin below, not by Maven itself. -->
     <packaging>python</packaging>
 
     <name>Example Python Project</name>
@@ -20,11 +19,6 @@
                 <groupId>com.github.realms42</groupId>
                 <artifactId>python-maven-plugin</artifactId>
                 <version>1.0.0-SNAPSHOT</version>
-                <!--
-                    Loads the plugin's components.xml, which registers the "python" artifact
-                    handler and the lifecycle binding its goals to phases. Without it,
-                    <packaging>python</packaging> is unknown to Maven.
-                -->
                 <extensions>true</extensions>
             </plugin>
         </plugins>
