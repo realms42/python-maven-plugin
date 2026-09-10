@@ -19,21 +19,9 @@
                     <lifecycle>
                         <id>default</id>
                         <phases>
-                            <initialize>
-                                com.github.realms42:python-maven-plugin:copy-sources
-                            </initialize>
-                            <generate-resources>
-                                com.github.realms42:python-maven-plugin:generate-pyproject,
-                                com.github.realms42:python-maven-plugin:setup-env
-                            </generate-resources>
                             <compile>
                                 com.github.realms42:python-maven-plugin:build
                             </compile>
-                            <test>
-                                com.github.realms42:python-maven-plugin:lint,
-                                com.github.realms42:python-maven-plugin:format,
-                                com.github.realms42:python-maven-plugin:test
-                            </test>
                             <package>
                                 com.github.realms42:python-maven-plugin:package
                             </package>

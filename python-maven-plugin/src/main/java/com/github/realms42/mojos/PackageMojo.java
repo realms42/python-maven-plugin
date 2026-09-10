@@ -1,11 +1,13 @@
 package com.github.realms42.mojos;
 
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugins.annotations.Component;
@@ -15,11 +17,10 @@ import org.apache.maven.plugins.annotations.Parameter;
 import org.apache.maven.project.MavenProject;
 import org.apache.maven.project.MavenProjectHelper;
 
-import com.github.realms42.mojos.base.AbstractPythonMojo;
 import com.github.realms42.util.FileCopyUtil;
 
 @Mojo(name = "package", defaultPhase = LifecyclePhase.PACKAGE)
-public class PackageMojo extends AbstractPythonMojo {
+public class PackageMojo extends BaseMojo {
 
     private static final String WHEEL = ".whl";
     private static final String SDIST = ".tar.gz";
@@ -32,15 +33,13 @@ public class PackageMojo extends AbstractPythonMojo {
 
     @Override
     public void execute() throws MojoExecutionException {
-        Path target = buildDir.toPath();
         List<Path> artifacts;
-        try {
-            artifacts = FileCopyUtil.copyFiles(getBuildPath(), p -> target.resolve(p.getFileName()));
+        try (Stream<Path> files = Files.list(getPythonBuildPath())) {
+            artifacts = files
+                    .filter(Files::isRegularFile)
+                    .collect(Collectors.toList());
         } catch (IOException e) {
-            throw new MojoExecutionException("Failed to package artifacts: " + e.getMessage());
-        }
-        for (Path artifact : artifacts) {
-            getLog().info("Packaged: " + artifact.getFileName());
+            throw new MojoExecutionException("Failed to list files in " + getPythonBuildPath(), e);
         }
 
         project.getArtifact().setFile(soleSdist(artifacts).toFile());
@@ -52,7 +51,7 @@ public class PackageMojo extends AbstractPythonMojo {
     private Path soleSdist(List<Path> artifacts) throws MojoExecutionException {
         List<Path> matches = matching(artifacts, SDIST);
         if (matches.size() != 1) {
-            throw new MojoExecutionException("Expected exactly one " + SDIST + " in " + getBuildPath()
+            throw new MojoExecutionException("Expected exactly one " + SDIST + " in " + buildDir
                     + ", found " + matches.size() + ". Maven can only publish one primary artifact.");
         }
         return matches.get(0);

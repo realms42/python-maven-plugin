@@ -9,3 +9,6 @@ wheels/
 .pytest_cache/
 
 target
+
+.vscode/
+.idea/

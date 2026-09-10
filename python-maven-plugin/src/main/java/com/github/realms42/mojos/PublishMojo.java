@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -21,10 +22,8 @@ import org.apache.maven.settings.crypto.DefaultSettingsDecryptionRequest;
 import org.apache.maven.settings.crypto.SettingsDecrypter;
 import org.apache.maven.settings.crypto.SettingsDecryptionResult;
 
-import com.github.realms42.mojos.base.AbstractPythonMojo;
-
 @Mojo(name = "publish", defaultPhase = LifecyclePhase.DEPLOY)
-public class PublishMojo extends AbstractPythonMojo {
+public class PublishMojo extends BaseMojo {
 
     @Parameter(defaultValue = "${project.version}", readonly = true)
     private String version;
@@ -60,19 +59,22 @@ public class PublishMojo extends AbstractPythonMojo {
 
         List<Path> distributions = distributions();
         if (distributions.isEmpty()) {
-            throw new MojoExecutionException("No distributions to publish in " + getBuildPath()
+            throw new MojoExecutionException("No distributions to publish in " + buildDir
                     + ". Run the build goal first.");
         }
-
-        runInVenv(python, "-m", "pip", "install", "--quiet", "--disable-pip-version-check", "twine");
 
         List<String> files = distributions.stream().map(Path::toString).collect(Collectors.toList());
         for (Path distribution : distributions) {
             getLog().info("Publishing: " + distribution.getFileName());
         }
-
-        runInVenv(command("twine", "check", files));
-        runInVenv(command("twine", "upload", uploadOptions(target, files)), credentials());
+        List<String> args = new ArrayList<>();
+        args.add("check");
+        args.addAll(files);
+        run("twine", args, credentials());
+        args.clear();
+        args.add("upload");
+        args.addAll(uploadOptions(target, files));
+        run("twine", args, credentials());
         getLog().info("Published " + distributions.size() + " distribution(s) to " + target);
     }
 
@@ -101,7 +103,7 @@ public class PublishMojo extends AbstractPythonMojo {
     }
 
     private List<Path> distributions() throws MojoExecutionException {
-        Path buildPath = getBuildPath();
+        Path buildPath = buildDir.toPath();
         if (!Files.isDirectory(buildPath)) {
             return new ArrayList<>();
         }
@@ -124,14 +126,6 @@ public class PublishMojo extends AbstractPythonMojo {
         options.add(target);
         options.addAll(files);
         return options;
-    }
-
-    private static List<String> command(String program, String subcommand, List<String> rest) {
-        List<String> command = new ArrayList<>();
-        command.add(program);
-        command.add(subcommand);
-        command.addAll(rest);
-        return command;
     }
 
     private Map<String, String> credentials() throws MojoExecutionException {
