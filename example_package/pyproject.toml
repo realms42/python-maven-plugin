@@ -1,16 +1,14 @@
-[build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
-
 [project]
 name = "example_package"
 description = "Example package built by the python-maven-plugin"
 requires-python = ">=3.9"
-
-# The Maven version drives the Python version. PEP 621 requires opting in to
-# that with dynamic; the plugin fills the value in and removes it from this
-# list when it writes the work copy.
 dynamic = ["version"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+
 
 [tool.ruff]
 line-length = 100
