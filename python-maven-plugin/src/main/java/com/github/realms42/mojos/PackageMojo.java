@@ -18,20 +18,6 @@ import org.apache.maven.project.MavenProjectHelper;
 import com.github.realms42.mojos.base.AbstractPythonMojo;
 import com.github.realms42.util.FileCopyUtil;
 
-/**
- * Copies the built distributions into the build directory and hands them to
- * Maven as this project's artifacts.
- *
- * <p>The sdist is the project's artifact. It is the one distribution that fits
- * Maven's model: it carries no platform tags, so a single set of coordinates is
- * correct for every consumer, and pip reads its metadata from inside the
- * archive rather than from the file name Maven gives it.
- *
- * <p>Wheels are attached alongside it, each under its compatibility tag as the
- * classifier. Maven coordinates have nowhere else to record that tag, so
- * without it platform-specific wheels would collide on one set of coordinates
- * and a consumer could resolve a wheel built for another platform.
- */
 @Mojo(name = "package", defaultPhase = LifecyclePhase.PACKAGE)
 public class PackageMojo extends AbstractPythonMojo {
 
@@ -63,7 +49,6 @@ public class PackageMojo extends AbstractPythonMojo {
         attachWheels(matching(artifacts, WHEEL));
     }
 
-    /** Maven publishes one primary artifact, so the build has to have produced exactly one sdist. */
     private Path soleSdist(List<Path> artifacts) throws MojoExecutionException {
         List<Path> matches = matching(artifacts, SDIST);
         if (matches.size() != 1) {
@@ -91,12 +76,6 @@ public class PackageMojo extends AbstractPythonMojo {
         }
     }
 
-    /**
-     * The trailing python-abi-platform tag of a wheel file name, which is what
-     * decides where the wheel may be installed. PEP 427 names a wheel
-     * {@code name-version(-build)?-python-abi-platform.whl}, so it is the last
-     * three hyphen-separated fields.
-     */
     private static Optional<String> compatibilityTag(Path wheel) {
         String name = wheel.getFileName().toString();
         String[] fields = name.substring(0, name.length() - WHEEL.length()).split("-");

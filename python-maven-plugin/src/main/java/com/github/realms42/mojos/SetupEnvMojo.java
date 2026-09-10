@@ -25,13 +25,12 @@ public class SetupEnvMojo extends AbstractPythonMojo {
         runInProjectVenv(python, pipInstall("-e", "."));
         getLog().info("Project venv ready (clean runtime environment)");
 
-        createVenv(getToolsVenvPath(), "tools");
+        createVenv(getPluginVenvPath(), "tools");
         runInVenv(python, pipInstall("build", "pytest", "ruff"));
         runInVenv(python, pipInstall("-e", "."));
         getLog().info("Tools venv ready (build, pytest, ruff + project editable install)");
     }
 
-    /** Create {@code venvPath} if it is not already there. */
     private void createVenv(Path venvPath, String label) throws MojoExecutionException {
         if (Files.exists(venvPath)) {
             getLog().info("Reusing " + label + " venv at " + venvPath);
@@ -41,7 +40,6 @@ public class SetupEnvMojo extends AbstractPythonMojo {
         getLog().info("Created " + label + " venv at " + venvPath);
     }
 
-    /** Arguments for a quiet {@code python -m pip install} of the given targets. */
     private static String[] pipInstall(String... targets) {
         List<String> args = new ArrayList<>(PIP_INSTALL);
         args.addAll(Arrays.asList(targets));

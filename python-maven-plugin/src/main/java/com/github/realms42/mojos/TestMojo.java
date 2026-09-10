@@ -1,6 +1,6 @@
 package com.github.realms42.mojos;
 
-import java.util.Collections;
+import java.util.Arrays;
 import java.util.List;
 
 import org.apache.maven.plugins.annotations.LifecyclePhase;
@@ -12,15 +12,12 @@ import com.github.realms42.mojos.base.AbstractVenvCommandMojo;
 @Mojo(name = "test", defaultPhase = LifecyclePhase.TEST)
 public class TestMojo extends AbstractVenvCommandMojo {
 
-    @Parameter(defaultValue = "pytest")
-    private String tester;
-
     @Parameter(property = "python.test.skip", defaultValue = "false")
     private boolean skipTests;
 
     @Override
     protected List<String> command() {
-        return Collections.singletonList(tester);
+        return Arrays.asList("pytest");
     }
 
     @Override

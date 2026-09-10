@@ -20,19 +20,6 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.dataformat.toml.TomlFactory;
 import com.github.realms42.mojos.base.AbstractPythonMojo;
 
-/**
- * Places a pyproject.toml in the work directory.
- *
- * <p>The project's own pyproject.toml is the source of truth: it is read from
- * the project root, given the Maven-derived version, and written to the work
- * directory. The file on disk is never modified. Projects without one get a
- * minimal generated file, backed by hatchling, so a plain POM still builds.
- *
- * <p>The Maven version is only applied to a project that opts in with PEP 621
- * dynamic versioning ({@code dynamic = ["version"]}). A file that pins a
- * different {@code [project].version} fails the build rather than being
- * silently overridden.
- */
 @Mojo(name = "generate-pyproject", defaultPhase = LifecyclePhase.GENERATE_SOURCES)
 public class PyProjectMojo extends AbstractPythonMojo {
 
@@ -71,20 +58,12 @@ public class PyProjectMojo extends AbstractPythonMojo {
         write(root);
     }
 
-    /**
-     * Build the pyproject.toml for a project that does not ship one. The backend
-     * has to be declared explicitly: without a [build-system] table, PEP 517
-     * falls back to legacy setuptools behaviour.
-     */
     private ObjectNode generate() {
         ObjectNode root = TOML.createObjectNode();
         ObjectNode buildSystem = root.putObject("build-system");
         buildSystem.set("requires", TOML.createArrayNode().add(BACKEND));
         buildSystem.put("build-backend", BACKEND + ".build");
 
-        // Hatchling looks for a package directory named after the distribution, so a
-        // project whose directory differs — anything with a hyphen in its artifactId,
-        // for one — has to be told where its package lives.
         findSolePackage().ifPresent(name -> root.putObject("tool")
                 .putObject("hatch")
                 .putObject("build")
@@ -94,7 +73,6 @@ public class PyProjectMojo extends AbstractPythonMojo {
         return root;
     }
 
-    /** The single package directory under work/src, if there is exactly one. */
     private Optional<String> findSolePackage() {
         Path src = getWorkPath().resolve("src");
         if (!Files.isDirectory(src)) {
@@ -124,7 +102,6 @@ public class PyProjectMojo extends AbstractPythonMojo {
         }
     }
 
-    /** Fill in the package name from the Maven artifactId, leaving a declared name alone. */
     private void applyName(ObjectNode project) {
         if (!project.hasNonNull("name")) {
             project.put("name", artifactId);
@@ -137,11 +114,6 @@ public class PyProjectMojo extends AbstractPythonMojo {
         }
     }
 
-    /**
-     * Apply the Maven version, which requires the project to have opted in via
-     * {@code dynamic = ["version"]}. A statically pinned version is honoured only
-     * when it already matches; anything else is a conflict the user must resolve.
-     */
     private void applyVersion(ObjectNode project, String source) throws MojoExecutionException {
         String derived = versionToPep440(version);
         boolean pinned = project.hasNonNull("version");
@@ -188,11 +160,6 @@ public class PyProjectMojo extends AbstractPythonMojo {
         return false;
     }
 
-    /**
-     * Drop "version" from [project].dynamic. Once the version is written out as a
-     * static value, leaving it marked dynamic makes the file invalid — build
-     * backends reject a field that is both.
-     */
     private static void dropDynamicVersion(ObjectNode project) {
         ArrayNode remaining = TOML.createArrayNode();
         for (JsonNode entry : project.get("dynamic")) {
@@ -219,21 +186,11 @@ public class PyProjectMojo extends AbstractPythonMojo {
     }
 
     private String versionToPep440(String mavenVersion) {
-        // Strip common release qualifiers that mean "final release"
         String v = mavenVersion.replaceAll("(?i)[.\\-](RELEASE|Final|GA)$", "");
-
-        // SNAPSHOT → .dev0
         v = v.replaceAll("(?i)-SNAPSHOT$", ".dev0");
-
-        // Pre-release qualifiers: -alpha-N / -alphaN → aN
         v = v.replaceAll("(?i)-alpha-?(\\d+)$", "a$1");
-
-        // -beta-N / -betaN → bN
         v = v.replaceAll("(?i)-beta-?(\\d+)$", "b$1");
-
-        // -RC-N / -rcN / -RC-N → rcN
         v = v.replaceAll("(?i)-rc-?(\\d+)$", "rc$1");
-
         return v;
     }
 
