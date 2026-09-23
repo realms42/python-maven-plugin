@@ -58,7 +58,7 @@ public class PublishMojo extends BaseMojo {
 
         List<Path> distributions = distributions();
         if (distributions.isEmpty()) {
-            throw new MojoExecutionException("No distributions to publish in " + buildDir
+            throw new MojoExecutionException("No distributions to publish in " + getPythonBuildPath()
                     + ". Run the build goal first.");
         }
 
@@ -80,14 +80,14 @@ public class PublishMojo extends BaseMojo {
 
     private String targetRepository() throws MojoExecutionException {
         if (isSnapshot()) {
-            if (snapshotRepositoryUrl.isBlank()) {
+            if (snapshotRepositoryUrl == null || snapshotRepositoryUrl.isBlank()) {
                 getLog().info("Not publishing " + version + ": no snapshotRepositoryUrl is set,"
                         + " and snapshots are never sent to the release repository.");
                 return null;
             }
             return snapshotRepositoryUrl;
         }
-        if (repositoryUrl.isBlank()) {
+        if (repositoryUrl == null || repositoryUrl.isBlank()) {
             throw new MojoExecutionException("repositoryUrl is required to publish " + version
                     + ", so that a publish cannot reach public PyPI by defaulting there.");
         }
@@ -99,7 +99,7 @@ public class PublishMojo extends BaseMojo {
     }
 
     private List<Path> distributions() throws MojoExecutionException {
-        Path buildPath = buildDir.toPath();
+        Path buildPath = getPythonBuildPath();
         if (!Files.isDirectory(buildPath)) {
             return new ArrayList<>();
         }
