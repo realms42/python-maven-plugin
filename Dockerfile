@@ -1,10 +1,11 @@
 FROM redhat/ubi10:latest
 
 RUN dnf update -y \
-    && dnf install -y maven python3 python3-pip \
-    && python3 -m pip install --no-cache-dir build twine \
+    && dnf install -y maven python3 \
     && dnf clean all \
     && rm -rf /var/cache/dnf
+
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /usr/local/bin/
 
 WORKDIR /plugin
 COPY python-maven-plugin/pom.xml .

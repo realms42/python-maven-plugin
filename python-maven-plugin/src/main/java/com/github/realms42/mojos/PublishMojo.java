@@ -67,13 +67,14 @@ public class PublishMojo extends BaseMojo {
             getLog().info("Publishing: " + distribution.getFileName());
         }
         List<String> args = new ArrayList<>();
-        args.add("check");
-        args.addAll(files);
-        run("twine", args, credentials());
-        args.clear();
-        args.add("upload");
+        args.add("publish");
+        args.add("--dry-run");
         args.addAll(uploadOptions(target, files));
-        run("twine", args, credentials());
+        run("uv", args, credentials());
+        args.clear();
+        args.add("publish");
+        args.addAll(uploadOptions(target, files));
+        run("uv", args, credentials());
         getLog().info("Published " + distributions.size() + " distribution(s) to " + target);
     }
 
@@ -117,7 +118,7 @@ public class PublishMojo extends BaseMojo {
 
     private List<String> uploadOptions(String target, List<String> files) {
         List<String> options = new ArrayList<>();
-        options.add("--repository-url");
+        options.add("--publish-url");
         options.add(target);
         options.addAll(files);
         return options;
@@ -126,8 +127,8 @@ public class PublishMojo extends BaseMojo {
     private Map<String, String> credentials() throws MojoExecutionException {
         Map<String, String> env = new HashMap<>();
         if (serverId == null || serverId.isBlank()) {
-            getLog().info("No serverId configured; leaving twine to find credentials itself"
-                    + " (TWINE_* in the environment, or ~/.pypirc).");
+            getLog().info("No serverId configured; leaving uv to find credentials itself"
+                    + " (UV_PUBLISH_* in the environment, or trusted publishing).");
             return env;
         }
         Server server = settings.getServer(serverId);
@@ -145,10 +146,10 @@ public class PublishMojo extends BaseMojo {
 
         Server resolved = decrypted.getServer() != null ? decrypted.getServer() : server;
         if (resolved.getUsername() != null) {
-            env.put("TWINE_USERNAME", resolved.getUsername());
+            env.put("UV_PUBLISH_USERNAME", resolved.getUsername());
         }
         if (resolved.getPassword() != null) {
-            env.put("TWINE_PASSWORD", resolved.getPassword());
+            env.put("UV_PUBLISH_PASSWORD", resolved.getPassword());
         }
         getLog().info("Using credentials from server '" + serverId + "'.");
         return env;

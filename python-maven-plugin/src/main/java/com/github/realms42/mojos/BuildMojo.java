@@ -14,8 +14,8 @@ public class BuildMojo extends BaseMojo {
     @Override
     public void execute() throws MojoExecutionException, MojoFailureException {
         run(
-                python,
-                Arrays.asList("-m", "build", "--outdir", getPythonBuildPath().toString()),
+                "uv",
+                Arrays.asList("build", "--out-dir", getPythonBuildPath().toString()),
                 Map.of("PACKAGE_VERSION", versionToPep440()));
     }
 }

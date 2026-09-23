@@ -25,9 +25,6 @@ public abstract class BaseMojo extends AbstractMojo {
     @Parameter(defaultValue = "${project.version}", readonly = true)
     protected String version;
 
-    @Parameter(defaultValue = "python3")
-    protected String python;
-
     protected Path getPythonMavenPath() {
         return buildDir.toPath().resolve("python-maven-plugin");
     }
