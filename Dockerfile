@@ -18,4 +18,5 @@ RUN mvn install -B
 
 WORKDIR /example
 COPY example_package .
-# RUN --mount=type=cache,target=/root/.m2 --mount=type=cache,target=/root/.cache/uv mvn install -B
+# No cache mount on /root/.m2: it would start empty and hide the plugin installed there above.
+RUN --mount=type=cache,target=/root/.cache/uv mvn install -B
