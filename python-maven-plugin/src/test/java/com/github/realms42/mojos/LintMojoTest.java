@@ -34,10 +34,11 @@ class LintMojoTest {
     }
 
     @Test
-    void runsRuffCheckWithoutFixing() throws Exception {
+    void runsRuffCheckWithoutFixingAndOutsideTheBuildDirectory() throws Exception {
         mojo().execute();
 
-        assertEquals(List.of("uv", "run", "--locked", "--with", "ruff", "ruff", "check"), commands.commands.get(0));
+        assertEquals(List.of("uv", "run", "--locked", "--with", "ruff", "ruff", "check",
+                "--config", "extend-exclude = [\"" + project.resolve("target") + "\"]"), commands.commands.get(0));
         assertEquals(project.resolve("target/python-maven-plugin/ruff-cache").toString(),
                 commands.environments.get(0).get("RUFF_CACHE_DIR"));
     }

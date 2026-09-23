@@ -34,11 +34,11 @@ class FormatMojoTest {
     }
 
     @Test
-    void onlyChecksFormattingAndNeverRewrites() throws Exception {
+    void onlyChecksFormattingNeverRewritesAndStaysOutOfTheBuildDirectory() throws Exception {
         mojo().execute();
 
-        assertEquals(List.of("uv", "run", "--locked", "--with", "ruff", "ruff", "format", "--check"),
-                commands.commands.get(0));
+        assertEquals(List.of("uv", "run", "--locked", "--with", "ruff", "ruff", "format", "--check",
+                "--config", "extend-exclude = [\"" + project.resolve("target") + "\"]"), commands.commands.get(0));
     }
 
     @Test

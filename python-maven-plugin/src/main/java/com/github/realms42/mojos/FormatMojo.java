@@ -17,6 +17,6 @@ public class FormatMojo extends BaseMojo {
             getLog().info("Format check is skipped.");
             return;
         }
-        run("uv", uvRun("ruff", "format", "--check"), uvEnvironment());
+        run("uv", uvRun("ruff", "format", "--check", "--config", ruffExcludeBuildDir()), uvEnvironment());
     }
 }

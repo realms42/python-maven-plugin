@@ -52,6 +52,14 @@ public abstract class BaseMojo extends AbstractMojo {
         return command;
     }
 
+    // Keeps ruff out of Maven's build directory, whether or not the project's .gitignore lists it. A --config
+    // override adds to the project's own extend-exclude on every ruff since 0.2.2, whereas
+    // `ruff format --extend-exclude` only exists since 0.15.21, newer than a project may have pinned.
+    protected String ruffExcludeBuildDir() {
+        String path = buildDir.getAbsolutePath().replace("\\", "\\\\").replace("\"", "\\\"");
+        return "extend-exclude = [\"" + path + "\"]";
+    }
+
     protected void run(String cmd, List<String> args) throws MojoExecutionException {
         run(cmd, args, new HashMap<>());
     }

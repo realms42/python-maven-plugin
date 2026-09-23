@@ -23,7 +23,8 @@ public class TestMojo extends BaseMojo {
             return;
         }
         String cacheDir = "cache_dir=" + getPythonMavenPath().resolve("pytest-cache");
-        int exitCode = exec("uv", uvRun("pytest", "-o", cacheDir), uvEnvironment());
+        String ignoreBuildDir = "--ignore=" + buildDir.getAbsolutePath();
+        int exitCode = exec("uv", uvRun("pytest", "-o", cacheDir, ignoreBuildDir), uvEnvironment());
         if (exitCode == PYTEST_NO_TESTS_COLLECTED) {
             getLog().info("No tests to run.");
         } else if (exitCode != 0) {

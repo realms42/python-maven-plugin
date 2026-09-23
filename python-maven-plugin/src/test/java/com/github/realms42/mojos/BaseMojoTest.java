@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.io.File;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
@@ -65,6 +66,21 @@ class BaseMojoTest {
     void uvRunIsLockedAndLetsTheProjectPinTheTool() {
         assertEquals(List.of("run", "--locked", "--with", "ruff", "ruff", "format", "--check"),
                 mojo("1.0.0").uvRun("ruff", "format", "--check"));
+    }
+
+    @Test
+    void ruffExcludesTheBuildDirectoryByItsAbsolutePath() {
+        assertEquals("extend-exclude = [\"" + project.resolve("target") + "\"]",
+                mojo("1.0.0").ruffExcludeBuildDir());
+    }
+
+    @Test
+    @DisabledOnOs(OS.WINDOWS)
+    void ruffExcludeEscapesThePathForToml() {
+        BaseMojo mojo = mojo("1.0.0");
+        mojo.buildDir = new File("/builds/it's \"quoted\"\\target");
+
+        assertEquals("extend-exclude = [\"/builds/it's \\\"quoted\\\"\\\\target\"]", mojo.ruffExcludeBuildDir());
     }
 
     @Test

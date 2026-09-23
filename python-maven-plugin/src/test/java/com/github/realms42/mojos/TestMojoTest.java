@@ -36,13 +36,14 @@ class TestMojoTest {
     }
 
     @Test
-    void runsPytestThroughUvWithItsCacheUnderTarget() throws Exception {
+    void runsPytestThroughUvWithItsCacheUnderTargetAndTargetIgnored() throws Exception {
         mojo().execute();
 
         Path work = project.resolve("target/python-maven-plugin");
         assertEquals(
                 List.of("uv", "run", "--locked", "--with", "pytest", "pytest",
-                        "-o", "cache_dir=" + work.resolve("pytest-cache")),
+                        "-o", "cache_dir=" + work.resolve("pytest-cache"),
+                        "--ignore=" + project.resolve("target")),
                 commands.commands.get(0));
         assertEquals("1.2.0.dev0", commands.environments.get(0).get("PACKAGE_VERSION"));
         assertEquals(work.resolve(".venv").toString(), commands.environments.get(0).get("UV_PROJECT_ENVIRONMENT"));

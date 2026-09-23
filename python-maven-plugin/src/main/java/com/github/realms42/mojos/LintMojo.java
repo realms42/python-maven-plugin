@@ -17,6 +17,6 @@ public class LintMojo extends BaseMojo {
             getLog().info("Linting is skipped.");
             return;
         }
-        run("uv", uvRun("ruff", "check"), uvEnvironment());
+        run("uv", uvRun("ruff", "check", "--config", ruffExcludeBuildDir()), uvEnvironment());
     }
 }
