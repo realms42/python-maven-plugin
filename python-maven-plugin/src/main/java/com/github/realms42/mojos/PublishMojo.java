@@ -66,22 +66,23 @@ public class PublishMojo extends BaseMojo {
         for (Path distribution : distributions) {
             getLog().info("Publishing: " + distribution.getFileName());
         }
+        Map<String, String> credentials = credentials();
         List<String> args = new ArrayList<>();
         args.add("publish");
         args.add("--dry-run");
         args.addAll(uploadOptions(target, files));
-        run("uv", args, credentials());
+        run("uv", args, credentials);
         args.clear();
         args.add("publish");
         args.addAll(uploadOptions(target, files));
-        run("uv", args, credentials());
+        run("uv", args, credentials);
         getLog().info("Published " + distributions.size() + " distribution(s) to " + target);
     }
 
     private String targetRepository() throws MojoExecutionException {
         if (isSnapshot()) {
             if (snapshotRepositoryUrl == null || snapshotRepositoryUrl.isBlank()) {
-                getLog().info("Not publishing " + version + ": no snapshotRepositoryUrl is set,"
+                getLog().warn("Not publishing " + version + ": no snapshotRepositoryUrl is set,"
                         + " and snapshots are never sent to the release repository.");
                 return null;
             }
@@ -127,7 +128,7 @@ public class PublishMojo extends BaseMojo {
     private Map<String, String> credentials() throws MojoExecutionException {
         Map<String, String> env = new HashMap<>();
         if (serverId == null || serverId.isBlank()) {
-            getLog().info("No serverId configured; leaving uv to find credentials itself"
+            getLog().debug("No serverId configured; leaving uv to find credentials itself"
                     + " (UV_PUBLISH_* in the environment, or trusted publishing).");
             return env;
         }
@@ -151,7 +152,7 @@ public class PublishMojo extends BaseMojo {
         if (resolved.getPassword() != null) {
             env.put("UV_PUBLISH_PASSWORD", resolved.getPassword());
         }
-        getLog().info("Using credentials from server '" + serverId + "'.");
+        getLog().debug("Using credentials from server '" + serverId + "'.");
         return env;
     }
 }

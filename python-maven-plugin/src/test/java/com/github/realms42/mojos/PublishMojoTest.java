@@ -103,7 +103,8 @@ class PublishMojoTest {
 
         assertTrue(commands.commands.isEmpty());
         assertEquals(List.of("Not publishing 1.0.0-SNAPSHOT: no snapshotRepositoryUrl is set,"
-                + " and snapshots are never sent to the release repository."), log(mojo).info);
+                + " and snapshots are never sent to the release repository."), log(mojo).warnings);
+        assertTrue(log(mojo).info.isEmpty());
     }
 
     @ParameterizedTest
@@ -152,6 +153,7 @@ class PublishMojoTest {
 
         Map<String, String> credentials = Map.of("UV_PUBLISH_USERNAME", "alice", "UV_PUBLISH_PASSWORD", "s3cret");
         assertEquals(List.of(credentials, credentials), commands.environments);
+        assertEquals(List.of("Using credentials from server 'index'."), log(mojo).debug);
     }
 
     @Test
@@ -161,8 +163,21 @@ class PublishMojoTest {
         mojo.execute();
 
         assertEquals(List.of(Map.of(), Map.of()), commands.environments);
-        assertTrue(log(mojo).info.contains("No serverId configured; leaving uv to find credentials itself"
-                + " (UV_PUBLISH_* in the environment, or trusted publishing)."));
+        assertEquals(List.of("No serverId configured; leaving uv to find credentials itself"
+                + " (UV_PUBLISH_* in the environment, or trusted publishing)."), log(mojo).debug);
+    }
+
+    @Test
+    void logsWhatItPublishesAtInfo() throws Exception {
+        PublishMojo mojo = mojo("1.0.0");
+
+        mojo.execute();
+
+        assertEquals(List.of(
+                "Publishing: example-1.0.0-py3-none-any.whl",
+                "Publishing: example-1.0.0.tar.gz",
+                "Published 2 distribution(s) to " + RELEASES), log(mojo).info);
+        assertTrue(log(mojo).warnings.isEmpty());
     }
 
     @Test

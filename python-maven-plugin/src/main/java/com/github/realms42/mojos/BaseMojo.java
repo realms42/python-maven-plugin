@@ -74,7 +74,7 @@ public abstract class BaseMojo extends AbstractMojo {
         StreamConsumer stdout = line -> getLog().info(line);
         StreamConsumer stderr = line -> getLog().info(line);
         try {
-            getLog().info("Running command: " + command);
+            getLog().debug("Running command: " + command);
             return CommandLineUtils.executeCommandLine(command, stdout, stderr);
         } catch (CommandLineException e) {
             throw new MojoExecutionException("Failed to log command: " + e.getMessage());

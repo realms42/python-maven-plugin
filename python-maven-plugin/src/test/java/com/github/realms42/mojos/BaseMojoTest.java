@@ -9,6 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.apache.maven.plugin.MojoExecutionException;
 import org.junit.jupiter.api.Test;
@@ -74,6 +75,19 @@ class BaseMojoTest {
         assertEquals(0, mojo.exec("sh", List.of("-c", "pwd"), Map.of()));
 
         assertTrue(log(mojo).info.contains(project.toString()), () -> "output: " + log(mojo).info);
+    }
+
+    @Test
+    @DisabledOnOs(OS.WINDOWS)
+    void execLogsTheToolsOutputAtInfoAndTheCommandLineAtDebug() throws Exception {
+        BaseMojo mojo = mojo("1.0.0");
+
+        mojo.exec("sh", List.of("-c", "echo out; echo err >&2"), Map.of());
+
+        assertEquals(Set.of("out", "err"), Set.copyOf(log(mojo).info));
+        assertEquals(2, log(mojo).info.size());
+        assertEquals(1, log(mojo).debug.size());
+        assertTrue(log(mojo).debug.get(0).startsWith("Running command: "), () -> "debug: " + log(mojo).debug);
     }
 
     @Test

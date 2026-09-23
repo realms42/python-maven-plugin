@@ -8,6 +8,7 @@ import java.util.Arrays;
 import java.util.Deque;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 import org.apache.maven.plugin.logging.SystemStreamLog;
 
@@ -66,9 +67,16 @@ final class MojoTesting {
         }
     }
 
+    // Thread-safe, since a real process's stdout and stderr are logged from two threads.
     static final class RecordingLog extends SystemStreamLog {
-        final List<String> info = new ArrayList<>();
-        final List<String> warnings = new ArrayList<>();
+        final List<String> debug = new CopyOnWriteArrayList<>();
+        final List<String> info = new CopyOnWriteArrayList<>();
+        final List<String> warnings = new CopyOnWriteArrayList<>();
+
+        @Override
+        public void debug(CharSequence content) {
+            debug.add(content.toString());
+        }
 
         @Override
         public void info(CharSequence content) {
