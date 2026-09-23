@@ -6,6 +6,9 @@ RUN dnf update -y \
     && rm -rf /var/cache/dnf
 
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /usr/local/bin/
+# A mounted uv cache (the cache mount below, or a docker run volume) is on another filesystem, so uv
+# copies from it instead of hardlinking; setting that explicitly stops uv warning about it on every run.
+ENV UV_LINK_MODE=copy
 
 WORKDIR /plugin
 COPY python-maven-plugin/pom.xml .
@@ -15,4 +18,4 @@ RUN mvn install -B
 
 WORKDIR /example
 COPY example_package .
-# RUN --mount=type=cache,target=/root/.m2 mvn install -B
+# RUN --mount=type=cache,target=/root/.m2 --mount=type=cache,target=/root/.cache/uv mvn install -B
