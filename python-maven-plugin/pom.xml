@@ -53,6 +53,14 @@
       <version>5.14.4</version>
       <scope>test</scope>
     </dependency>
+
+    <!-- Matches the slf4j-api 1.7.x that maven-core brings, so Maven's classes stop warning about a missing binding in tests. -->
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-nop</artifactId>
+      <version>1.7.36</version>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
 
 
