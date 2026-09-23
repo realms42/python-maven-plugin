@@ -49,7 +49,7 @@ public class PackageMojo extends BaseMojo {
     private Path soleSdist(List<Path> artifacts) throws MojoExecutionException {
         List<Path> matches = matching(artifacts, SDIST);
         if (matches.size() != 1) {
-            throw new MojoExecutionException("Expected exactly one " + SDIST + " in " + buildDir
+            throw new MojoExecutionException("Expected exactly one " + SDIST + " in " + getPythonBuildPath()
                     + ", found " + matches.size() + ". Maven can only publish one primary artifact.");
         }
         return matches.get(0);
