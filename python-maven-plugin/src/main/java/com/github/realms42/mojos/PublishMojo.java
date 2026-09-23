@@ -33,17 +33,36 @@ public class PublishMojo extends BaseMojo {
     @Component
     private SettingsDecrypter settingsDecrypter;
 
-    @Parameter(property = "python.publish.url")
-    private String repositoryUrl;
+    @Parameter
+    private PublishRepository releaseRepository;
 
-    @Parameter(property = "python.publish.snapshotUrl")
+    @Parameter
+    private PublishRepository snapshotRepository;
+
+    // The same repositories as properties, so a parent POM, a settings.xml profile or -D can set them.
+    // A <releaseRepository> or <snapshotRepository> block wins value by value. These read the properties
+    // as default values rather than binding them with `property`, which would make Maven warn that a
+    // read-only parameter is configured whenever one is set.
+    @Parameter(defaultValue = "${python.publish.releaseRepository.id}", readonly = true)
+    private String releaseRepositoryId;
+
+    @Parameter(defaultValue = "${python.publish.releaseRepository.url}", readonly = true)
+    private String releaseRepositoryUrl;
+
+    @Parameter(defaultValue = "${python.publish.snapshotRepository.id}", readonly = true)
+    private String snapshotRepositoryId;
+
+    @Parameter(defaultValue = "${python.publish.snapshotRepository.url}", readonly = true)
     private String snapshotRepositoryUrl;
-
-    @Parameter(property = "python.publish.serverId")
-    private String serverId;
 
     @Parameter(property = "python.publish.skip", defaultValue = "false")
     private boolean skipPublish;
+
+    @Parameter(property = "python.publish.skipReleases", defaultValue = "false")
+    private boolean skipReleases;
+
+    @Parameter(property = "python.publish.skipSnapshots", defaultValue = "false")
+    private boolean skipSnapshots;
 
     @Override
     public void execute() throws MojoExecutionException {
@@ -51,10 +70,13 @@ public class PublishMojo extends BaseMojo {
             getLog().info("Publishing skipped.");
             return;
         }
-        String target = targetRepository();
-        if (target == null) {
+        boolean snapshot = isSnapshot();
+        if (snapshot ? skipSnapshots : skipReleases) {
+            getLog().info("Publishing " + (snapshot ? "snapshots" : "releases") + " skipped.");
             return;
         }
+        PublishRepository repository = targetRepository(snapshot);
+        String target = repository.getUrl();
 
         List<Path> distributions = distributions();
         if (distributions.isEmpty()) {
@@ -66,7 +88,7 @@ public class PublishMojo extends BaseMojo {
         for (Path distribution : distributions) {
             getLog().info("Publishing: " + distribution.getFileName());
         }
-        Map<String, String> credentials = credentials();
+        Map<String, String> credentials = credentials(repository.getId(), snapshot ? "snapshot" : "release");
         List<String> args = new ArrayList<>();
         args.add("publish");
         args.add("--dry-run");
@@ -79,20 +101,31 @@ public class PublishMojo extends BaseMojo {
         getLog().info("Published " + distributions.size() + " distribution(s) to " + target);
     }
 
-    private String targetRepository() throws MojoExecutionException {
-        if (isSnapshot()) {
-            if (snapshotRepositoryUrl == null || snapshotRepositoryUrl.isBlank()) {
-                getLog().warn("Not publishing " + version + ": no snapshotRepositoryUrl is set,"
-                        + " and snapshots are never sent to the release repository.");
-                return null;
-            }
-            return snapshotRepositoryUrl;
+    private PublishRepository targetRepository(boolean snapshot) throws MojoExecutionException {
+        PublishRepository repository = snapshot
+                ? merge(snapshotRepository, snapshotRepositoryId, snapshotRepositoryUrl)
+                : merge(releaseRepository, releaseRepositoryId, releaseRepositoryUrl);
+        if (repository.getUrl() == null) {
+            String kind = snapshot ? "snapshot" : "release";
+            throw new MojoExecutionException("No " + kind + " repository URL to publish " + version + " to."
+                    + " Set <" + kind + "Repository><url> or the python.publish." + kind + "Repository.url property,"
+                    + " or skip with -Dpython.publish.skip" + (snapshot ? "Snapshots" : "Releases") + "."
+                    + " There is no default, so a publish can't reach public PyPI by accident.");
         }
-        if (repositoryUrl == null || repositoryUrl.isBlank()) {
-            throw new MojoExecutionException("repositoryUrl is required to publish " + version
-                    + ", so that a publish cannot reach public PyPI by defaulting there.");
+        return repository;
+    }
+
+    private static PublishRepository merge(PublishRepository block, String propertyId, String propertyUrl) {
+        return new PublishRepository(
+                valueOf(block == null ? null : block.getId(), propertyId),
+                valueOf(block == null ? null : block.getUrl(), propertyUrl));
+    }
+
+    private static String valueOf(String configured, String property) {
+        if (configured != null && !configured.isBlank()) {
+            return configured;
         }
-        return repositoryUrl;
+        return property == null || property.isBlank() ? null : property;
     }
 
     private boolean isSnapshot() {
@@ -125,10 +158,10 @@ public class PublishMojo extends BaseMojo {
         return options;
     }
 
-    private Map<String, String> credentials() throws MojoExecutionException {
+    private Map<String, String> credentials(String serverId, String kind) throws MojoExecutionException {
         Map<String, String> env = new HashMap<>();
-        if (serverId == null || serverId.isBlank()) {
-            getLog().debug("No serverId configured; leaving uv to find credentials itself"
+        if (serverId == null) {
+            getLog().debug("The " + kind + " repository has no id; leaving uv to find credentials itself"
                     + " (UV_PUBLISH_* in the environment, or trusted publishing).");
             return env;
         }

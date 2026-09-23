@@ -65,12 +65,52 @@ class PluginWiringTest {
             "lint, skip, python.lint.skip",
             "format, skip, python.format.skip",
             "publish, skipPublish, python.publish.skip",
-            "publish, repositoryUrl, python.publish.url",
-            "publish, snapshotRepositoryUrl, python.publish.snapshotUrl",
-            "publish, serverId, python.publish.serverId",
+            "publish, skipReleases, python.publish.skipReleases",
+            "publish, skipSnapshots, python.publish.skipSnapshots",
     })
     void parameterIsSetByItsUserProperty(String goal, String parameter, String property) throws Exception {
         assertEquals("${" + property + "}", child(child(mojo(goal), "configuration"), parameter).getTextContent());
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+            "releaseRepositoryId, python.publish.releaseRepository.id",
+            "releaseRepositoryUrl, python.publish.releaseRepository.url",
+            "snapshotRepositoryId, python.publish.snapshotRepository.id",
+            "snapshotRepositoryUrl, python.publish.snapshotRepository.url",
+    })
+    void repositoryValuesAreReadFromProperties(String parameter, String property) throws Exception {
+        Element configured = child(child(mojo("publish"), "configuration"), parameter);
+
+        assertEquals("${" + property + "}", configured.getAttribute("default-value"));
+        assertEquals("", configured.getTextContent());
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+            "releaseRepository, true",
+            "snapshotRepository, true",
+            "releaseRepositoryId, false",
+            "releaseRepositoryUrl, false",
+            "snapshotRepositoryId, false",
+            "snapshotRepositoryUrl, false",
+    })
+    void repositoriesAreBlocksInThePomAndPlainValuesAsProperties(String name, String editable) throws Exception {
+        Element parameter = parameter(mojo("publish"), name);
+
+        assertEquals(editable, child(parameter, "editable").getTextContent());
+        if (Boolean.parseBoolean(editable)) {
+            assertEquals(PublishRepository.class.getName(), child(parameter, "type").getTextContent());
+        }
+    }
+
+    private static Element parameter(Element mojo, String name) {
+        for (Element parameter : children(child(mojo, "parameters"))) {
+            if (name.equals(child(parameter, "name").getTextContent())) {
+                return parameter;
+            }
+        }
+        throw new AssertionError("The '" + child(mojo, "goal").getTextContent() + "' goal has no parameter " + name);
     }
 
     private static Element mojo(String goal) throws Exception {
