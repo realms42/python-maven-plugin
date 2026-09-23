@@ -5,7 +5,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Comparator;
-import java.util.Map;
 import java.util.stream.Stream;
 
 import org.apache.maven.plugin.MojoExecutionException;
@@ -22,7 +21,7 @@ public class BuildMojo extends BaseMojo {
         run(
                 "uv",
                 Arrays.asList("build", "--out-dir", getPythonBuildPath().toString()),
-                Map.of("PACKAGE_VERSION", versionToPep440()));
+                uvEnvironment());
     }
 
     // uv build only ever adds to its output directory, so without this a distribution left

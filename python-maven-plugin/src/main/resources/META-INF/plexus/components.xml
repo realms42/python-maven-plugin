@@ -22,9 +22,16 @@
                             <compile>
                                 com.github.realms42:python-maven-plugin:build
                             </compile>
+                            <test>
+                                com.github.realms42:python-maven-plugin:test
+                            </test>
                             <package>
                                 com.github.realms42:python-maven-plugin:package
                             </package>
+                            <verify>
+                                com.github.realms42:python-maven-plugin:lint,
+                                com.github.realms42:python-maven-plugin:format
+                            </verify>
                             <install>
                                 org.apache.maven.plugins:maven-install-plugin:3.1.2:install
                             </install>

@@ -2,6 +2,8 @@ package com.github.realms42.mojos;
 
 import java.io.File;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -33,13 +35,38 @@ public abstract class BaseMojo extends AbstractMojo {
         return buildDir.toPath().resolve("python-build");
     }
 
+    // The virtualenv, bytecode and tool caches all go under target/, so a build never writes into the project.
+    protected Map<String, String> uvEnvironment() {
+        return Map.of(
+                "PACKAGE_VERSION", versionToPep440(),
+                "UV_PROJECT_ENVIRONMENT", getPythonMavenPath().resolve(".venv").toString(),
+                "PYTHONPYCACHEPREFIX", getPythonMavenPath().resolve("pycache").toString(),
+                "RUFF_CACHE_DIR", getPythonMavenPath().resolve("ruff-cache").toString());
+    }
+
+    // `--with tool` defers to the project's own pin of the tool, if it has one, and uses the
+    // latest release otherwise. `--locked` fails on a missing or stale uv.lock instead of writing it.
+    protected List<String> uvRun(String tool, String... args) {
+        List<String> command = new ArrayList<>(Arrays.asList("run", "--locked", "--with", tool, tool));
+        command.addAll(Arrays.asList(args));
+        return command;
+    }
+
     protected void run(String cmd, List<String> args) throws MojoExecutionException {
         run(cmd, args, new HashMap<>());
     }
 
     protected void run(String cmd, List<String> args, Map<String, String> envOverrides) throws MojoExecutionException {
+        int exitCode = exec(cmd, args, envOverrides);
+        if (exitCode != 0) {
+            throw new MojoExecutionException("Command failed with exit code " + exitCode);
+        }
+    }
+
+    protected int exec(String cmd, List<String> args, Map<String, String> envOverrides) throws MojoExecutionException {
         Commandline command = new Commandline();
         command.setExecutable(cmd);
+        command.setWorkingDirectory(basePath);
         command.addArguments(args.toArray(String[]::new));
 
         envOverrides.forEach(command::addEnvironment);
@@ -48,10 +75,7 @@ public abstract class BaseMojo extends AbstractMojo {
         StreamConsumer stderr = line -> getLog().info(line);
         try {
             getLog().info("Running command: " + command);
-            int exitCode = CommandLineUtils.executeCommandLine(command, stdout, stderr);
-            if (exitCode != 0) {
-                throw new MojoExecutionException("Command failed with exit code " + exitCode);
-            }
+            return CommandLineUtils.executeCommandLine(command, stdout, stderr);
         } catch (CommandLineException e) {
             throw new MojoExecutionException("Failed to log command: " + e.getMessage());
         }
