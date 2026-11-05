@@ -60,7 +60,6 @@ class BaseMojoTest {
         Path work = project.resolve("target").resolve("python-maven-plugin");
 
         assertEquals(Map.of(
-                "PACKAGE_VERSION", "1.0.0.dev0",
                 "UV_PROJECT_ENVIRONMENT", work.resolve(".venv").toString(),
                 "PYTHONPYCACHEPREFIX", work.resolve("pycache").toString(),
                 "RUFF_CACHE_DIR", work.resolve("ruff-cache").toString()),

@@ -1,5 +1,49 @@
 # python-maven-plugin
 
+## Versioning
+
+The distributions Maven builds get the Maven version, converted to PEP 440 (`1.0.0-SNAPSHOT` becomes
+`1.0.0.dev0`, `-rc-1` becomes `rc1`). The plugin passes it to `uv build` through the variables that
+version-from-git backends already read, so a project needs no Maven-specific configuration:
+
+| Variable | Read by |
+|---|---|
+| `SETUPTOOLS_SCM_PRETEND_VERSION` | hatch-vcs, setuptools-scm |
+| `PDM_BUILD_SCM_VERSION` | pdm-backend |
+
+Outside Maven, the project's own versioning applies, so `pyproject.toml` works on its own. With hatchling:
+
+```toml
+[build-system]
+requires = ["hatchling", "hatch-vcs"]
+build-backend = "hatchling.build"
+
+[project]
+dynamic = ["version"]
+
+# The version comes from git tags, and falls back to 0.0.0 outside a git checkout.
+[tool.hatch.version]
+source = "vcs"
+fallback-version = "0.0.0"
+
+# The version depends on git, so uv must rebuild the project when the commit or tags change.
+[tool.uv]
+cache-keys = [{ file = "pyproject.toml" }, { git = { commit = true, tags = true } }]
+```
+
+| | In a git checkout | Outside git |
+|---|---|---|
+| **Without Maven** | from git tags, e.g. `1.0.1.dev3+g1a2b3c4` | the fallback, `0.0.0` |
+| **Maven-built distributions** | the Maven version | the Maven version |
+
+The variables are only set for `uv build`, which builds the project alone. They apply to every package a build
+backend builds, so setting them while syncing the environment for `test` would also give the project's version to
+any dependency built from source there, such as a path or git dependency. Tests therefore run against the
+project's own version (from git, or the fallback), and only the distributions carry the Maven version.
+
+If the project lives in a subdirectory of its git repository, add
+`raw-options = { search_parent_directories = true }` to `[tool.hatch.version]`.
+
 ## Tool versions
 
 Under Maven, the plugin runs its own pinned versions of the tools it uses, whatever the project pins:

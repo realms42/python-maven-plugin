@@ -48,7 +48,6 @@ public abstract class BaseMojo extends AbstractMojo {
     // In Maven's offline mode (-o), uv stays offline too and works from its cache.
     protected Map<String, String> uvEnvironment() {
         Map<String, String> env = new HashMap<>();
-        env.put("PACKAGE_VERSION", versionToPep440());
         env.put("UV_PROJECT_ENVIRONMENT", getProjectVenvPath().toString());
         env.put("PYTHONPYCACHEPREFIX", getPythonMavenPath().resolve("pycache").toString());
         env.put("RUFF_CACHE_DIR", getPythonMavenPath().resolve("ruff-cache").toString());

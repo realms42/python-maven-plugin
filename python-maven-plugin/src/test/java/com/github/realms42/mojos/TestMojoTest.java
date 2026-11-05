@@ -4,6 +4,7 @@ import static com.github.realms42.mojos.MojoTesting.configure;
 import static com.github.realms42.mojos.MojoTesting.log;
 import static com.github.realms42.mojos.MojoTesting.set;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -69,7 +70,10 @@ class TestMojoTest {
                         "--junitxml=" + project.resolve("target/surefire-reports/TEST-pytest.xml"))),
                 commands.commands);
         for (Map<String, String> env : commands.environments) {
-            assertEquals("1.2.0.dev0", env.get("PACKAGE_VERSION"));
+            // The version variables apply to every package a backend builds, including dependencies built from
+            // source during `uv sync`, so only `uv build` gets them.
+            assertFalse(env.containsKey("SETUPTOOLS_SCM_PRETEND_VERSION"), env.toString());
+            assertFalse(env.containsKey("PDM_BUILD_SCM_VERSION"), env.toString());
             assertEquals(venv().toString(), env.get("UV_PROJECT_ENVIRONMENT"));
         }
     }

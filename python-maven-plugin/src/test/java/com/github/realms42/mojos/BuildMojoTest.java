@@ -42,7 +42,8 @@ class BuildMojoTest {
         assertEquals(
                 List.of("uv", "build", "--out-dir", project.resolve("target/python-build").toString()),
                 commands.commands.get(0));
-        assertEquals("3.1.0.dev0", commands.environments.get(0).get("PACKAGE_VERSION"));
+        assertEquals("3.1.0.dev0", commands.environments.get(0).get("SETUPTOOLS_SCM_PRETEND_VERSION"));
+        assertEquals("3.1.0.dev0", commands.environments.get(0).get("PDM_BUILD_SCM_VERSION"));
     }
 
     @Test
