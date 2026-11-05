@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.File;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
@@ -21,6 +22,8 @@ import org.junit.jupiter.api.condition.OS;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+
+import com.github.realms42.mojos.MojoTesting.Commands;
 
 class BaseMojoTest {
 
@@ -78,9 +81,71 @@ class BaseMojoTest {
     }
 
     @Test
-    void uvRunUsesTheSyncedEnvironmentAndLetsTheProjectPinTheTool() {
-        assertEquals(List.of("run", "--no-sync", "--with", "ruff", "ruff", "format", "--check"),
-                mojo("1.0.0").uvRun("ruff", "format", "--check"));
+    void installToolCreatesTheEnvironmentAndInstallsThePinnedVersion() throws Exception {
+        Commands commands = new Commands();
+        Path tools = project.resolve("target/python-maven-plugin/tools");
+
+        Path ruff = recording(commands).installTool(tools, "ruff", "0.17.3");
+
+        assertEquals(List.of(
+                List.of("uv", "venv", tools.toString()),
+                List.of("uv", "pip", "install", "--python", tools.toString(), "ruff==0.17.3")),
+                commands.commands);
+        assertEquals(BaseMojo.venvExecutable(tools, "ruff"), ruff);
+    }
+
+    // `uv pip install` replaces a version already there, so an existing environment is reused, not recreated.
+    @Test
+    void installToolReusesAnExistingEnvironment() throws Exception {
+        Commands commands = new Commands();
+        Path tools = Files.createDirectories(project.resolve("target/python-maven-plugin/tools"));
+
+        recording(commands).installTool(tools, "ruff", "0.17.3");
+
+        assertEquals(List.of(List.of("uv", "pip", "install", "--python", tools.toString(), "ruff==0.17.3")),
+                commands.commands);
+    }
+
+    @Test
+    void installToolRunsUvInTheBuildsEnvironmentSoItStaysOfflineUnderMavenOffline() throws Exception {
+        Commands commands = new Commands();
+        BaseMojo mojo = recording(commands);
+        mojo.offline = true;
+
+        mojo.installTool(project.resolve("tools"), "ruff", "0.17.3");
+
+        for (Map<String, String> env : commands.environments) {
+            assertEquals("1", env.get("UV_OFFLINE"));
+        }
+    }
+
+    // ruff skips directories named .venv by default, so a project running its own ruff doesn't lint the plugin's
+    // environments even when target/ isn't in its .gitignore.
+    @Test
+    void thePluginsEnvironmentsAreNamedSoAProjectsOwnRuffSkipsThem() {
+        BaseMojo mojo = mojo("1.0.0");
+
+        assertEquals(".venv", mojo.getProjectVenvPath().getFileName().toString());
+        assertEquals(".venv", mojo.getToolsVenvPath().getFileName().toString());
+    }
+
+    @Test
+    void theProjectsEnvironmentIsThePluginsOwnUnderTargetNeverTheProjectsVenv() {
+        assertEquals(project.resolve("target/python-maven-plugin/.venv").toString(),
+                mojo("1.0.0").uvEnvironment().get("UV_PROJECT_ENVIRONMENT"));
+    }
+
+    private BaseMojo recording(Commands commands) {
+        return configure(new BaseMojo() {
+            @Override
+            public void execute() {
+            }
+
+            @Override
+            protected int exec(String cmd, List<String> args, Map<String, String> env) {
+                return commands.exec(cmd, args, env);
+            }
+        }, project, "1.0.0");
     }
 
     @Test
@@ -96,7 +161,7 @@ class BaseMojoTest {
         MojoExecutionException e = assertThrows(MojoExecutionException.class,
                 () -> mojo("1.0.0").checkExitCode("pytest", "There are test failures.", 4));
 
-        assertEquals("`uv run pytest` failed with exit code 4. See the output above.", e.getMessage());
+        assertEquals("`pytest` failed with exit code 4. See the output above.", e.getMessage());
     }
 
     @Test

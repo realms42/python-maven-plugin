@@ -1,8 +1,8 @@
 package com.github.realms42.mojos;
 
 import java.io.File;
+import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -18,6 +18,11 @@ import org.apache.maven.shared.utils.cli.Commandline;
 import org.apache.maven.shared.utils.cli.StreamConsumer;
 
 public abstract class BaseMojo extends AbstractMojo {
+
+    // The tool versions the plugin runs under Maven, whatever a project pins for its own use. Changing them is
+    // a deliberate plugin release, so a new ruff or pytest release can't break a build that changed nothing.
+    static final String RUFF_VERSION = "0.17.3";
+    static final String PYTEST_VERSION = "9.2.0";
 
     @Parameter(defaultValue = "${project.build.directory}", readonly = true)
     protected File buildDir;
@@ -44,7 +49,7 @@ public abstract class BaseMojo extends AbstractMojo {
     protected Map<String, String> uvEnvironment() {
         Map<String, String> env = new HashMap<>();
         env.put("PACKAGE_VERSION", versionToPep440());
-        env.put("UV_PROJECT_ENVIRONMENT", getPythonMavenPath().resolve(".venv").toString());
+        env.put("UV_PROJECT_ENVIRONMENT", getProjectVenvPath().toString());
         env.put("PYTHONPYCACHEPREFIX", getPythonMavenPath().resolve("pycache").toString());
         env.put("RUFF_CACHE_DIR", getPythonMavenPath().resolve("ruff-cache").toString());
         if (offline) {
@@ -53,26 +58,47 @@ public abstract class BaseMojo extends AbstractMojo {
         return env;
     }
 
-    // Sets up the project's virtualenv before a tool runs in it. `--locked` fails on a missing or stale uv.lock
-    // instead of writing it. Done as its own step so that a uv failure, including a project that fails to build
-    // (which uv reports with exit code 1), is never mistaken for the tool's own exit code 1.
+    // The plugin's own environment for the project: the project and its locked dependencies, under target/.
+    // A project's own .venv is never used or touched.
+    protected Path getProjectVenvPath() {
+        return getPythonMavenPath().resolve(".venv");
+    }
+
+    // The plugin's own environment for tools that don't need the project, such as ruff. Named .venv, like the
+    // project's, because ruff and other tools skip directories with that name by default: a project running its
+    // own ruff must not lint the plugin's environments, even when target/ isn't in its .gitignore.
+    protected Path getToolsVenvPath() {
+        return getPythonMavenPath().resolve("tools").resolve(".venv");
+    }
+
+    protected static Path venvExecutable(Path venv, String name) {
+        boolean windows = System.getProperty("os.name").toLowerCase().contains("win");
+        return windows ? venv.resolve("Scripts").resolve(name + ".exe") : venv.resolve("bin").resolve(name);
+    }
+
+    // Sets up the plugin's environment for the project. `--locked` fails on a missing or stale uv.lock instead
+    // of writing it.
     protected void uvSync() throws MojoExecutionException {
         run("uv", Arrays.asList("sync", "--locked"), uvEnvironment());
     }
 
-    // Runs a tool in the virtualenv set up by uvSync(). `--with tool` defers to the project's own pin of the
-    // tool, if it has one, and uses the latest release otherwise.
-    protected List<String> uvRun(String tool, String... args) {
-        List<String> command = new ArrayList<>(Arrays.asList("run", "--no-sync", "--with", tool, tool));
-        command.addAll(Arrays.asList(args));
-        return command;
+    // Installs the plugin's pinned version of a tool into one of its environments, replacing any other version
+    // there, such as one the project's lock pins. Creates the environment first if needed.
+    protected Path installTool(Path venv, String tool, String version) throws MojoExecutionException {
+        if (!Files.isDirectory(venv)) {
+            run("uv", Arrays.asList("venv", venv.toString()), uvEnvironment());
+        }
+        run("uv", Arrays.asList("pip", "install", "--python", venv.toString(), tool + "==" + version),
+                uvEnvironment());
+        return venvExecutable(venv, tool);
     }
 
-    // Runs a check such as ruff or pytest. These exit with 1 when the project fails the check, which is a build
-    // failure (the project's fault), and with other codes when they can't run, which is a build error.
-    protected void runCheck(String tool, String failure, List<String> uvArgs)
+    // Runs a check such as ruff or pytest straight from its environment, so its exit code is its own and never
+    // uv's. These exit with 1 when the project fails the check, which is a build failure (the project's fault),
+    // and with other codes when they can't run, which is a build error.
+    protected void runCheck(String tool, String failure, Path executable, List<String> args)
             throws MojoExecutionException, MojoFailureException {
-        checkExitCode(tool, failure, exec("uv", uvArgs, uvEnvironment()));
+        checkExitCode(tool, failure, exec(executable.toString(), args, uvEnvironment()));
     }
 
     protected void checkExitCode(String tool, String failure, int exitCode)
@@ -82,13 +108,12 @@ public abstract class BaseMojo extends AbstractMojo {
         }
         if (exitCode != 0) {
             throw new MojoExecutionException(
-                    "`uv run " + tool + "` failed with exit code " + exitCode + ". See the output above.");
+                    "`" + tool + "` failed with exit code " + exitCode + ". See the output above.");
         }
     }
 
-    // Keeps ruff out of Maven's build directory, whether or not the project's .gitignore lists it. A --config
-    // override adds to the project's own extend-exclude on every ruff since 0.2.2, whereas
-    // `ruff format --extend-exclude` only exists since 0.15.21, newer than a project may have pinned.
+    // Keeps ruff out of Maven's build directory, whether or not the project's .gitignore lists it. Passed as a
+    // --config override, which adds to the project's own extend-exclude.
     protected String ruffExcludeBuildDir() {
         String path = buildDir.getAbsolutePath().replace("\\", "\\\\").replace("\"", "\\\"");
         return "extend-exclude = [\"" + path + "\"]";

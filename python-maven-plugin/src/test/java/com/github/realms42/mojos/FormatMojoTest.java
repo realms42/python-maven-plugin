@@ -26,21 +26,28 @@ class FormatMojoTest {
     private final Commands commands = new Commands();
 
     private FormatMojo mojo() {
-        return configure(new FormatMojo() {
+        FormatMojo mojo = configure(new FormatMojo() {
             @Override
             protected int exec(String cmd, List<String> args, Map<String, String> env) {
                 return commands.exec(cmd, args, env);
             }
         }, project, "1.0.0");
+        set(mojo, "ruffVersion", "0.17.3");
+        return mojo;
     }
 
     @Test
-    void onlyChecksFormattingNeverRewritesAndStaysOutOfTheBuildDirectory() throws Exception {
+    void onlyChecksFormattingWithThePluginsPinnedRuffNeverRewritesAndStaysOutOfTheBuildDirectory()
+            throws Exception {
         mojo().execute();
 
-        assertEquals(List.of("uv", "sync", "--locked"), commands.commands.get(0));
-        assertEquals(List.of("uv", "run", "--no-sync", "--with", "ruff", "ruff", "format", "--check",
-                "--config", "extend-exclude = [\"" + project.resolve("target") + "\"]"), commands.commands.get(1));
+        Path tools = project.resolve("target/python-maven-plugin/tools/.venv");
+        assertEquals(List.of(
+                List.of("uv", "venv", tools.toString()),
+                List.of("uv", "pip", "install", "--python", tools.toString(), "ruff==0.17.3"),
+                List.of(BaseMojo.venvExecutable(tools, "ruff").toString(), "format", "--check",
+                        "--config", "extend-exclude = [\"" + project.resolve("target") + "\"]")),
+                commands.commands);
     }
 
     @Test
@@ -55,8 +62,8 @@ class FormatMojoTest {
     }
 
     @Test
-    void failsTheBuildWhenTheProjectFailsTheCheck() {
-        commands.exitingWith(0, 1);
+    void failsTheBuildWhenFilesArentFormatted() {
+        commands.exitingWith(0, 0, 1);
 
         MojoFailureException e = assertThrows(MojoFailureException.class, () -> mojo().execute());
 
@@ -64,23 +71,21 @@ class FormatMojoTest {
     }
 
     @Test
-    void reportsABuildErrorWhenTheToolCantRun() {
-        commands.exitingWith(0, 2);
+    void reportsABuildErrorWhenRuffCantRun() {
+        commands.exitingWith(0, 0, 2);
 
         MojoExecutionException e = assertThrows(MojoExecutionException.class, () -> mojo().execute());
 
-        assertEquals("`uv run ruff format` failed with exit code 2. See the output above.", e.getMessage());
+        assertEquals("`ruff format` failed with exit code 2. See the output above.", e.getMessage());
     }
 
-    // uv also exits with 1, for example when the project fails to build, so the environment is set up in its
-    // own step and a failure there is never reported as the check failing.
     @Test
-    void reportsABuildErrorWithoutRunningTheToolWhenUvCantSetUpTheProject() {
-        commands.exitingWith(1);
+    void reportsABuildErrorWithoutCheckingWhenRuffCantBeInstalled() {
+        commands.exitingWith(0, 1);
 
         MojoExecutionException e = assertThrows(MojoExecutionException.class, () -> mojo().execute());
 
-        assertEquals("`uv sync` failed with exit code 1. See the output above.", e.getMessage());
-        assertEquals(1, commands.commands.size());
+        assertEquals("`uv pip` failed with exit code 1. See the output above.", e.getMessage());
+        assertEquals(2, commands.commands.size());
     }
 }

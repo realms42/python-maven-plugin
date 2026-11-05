@@ -82,6 +82,17 @@ class PluginWiringTest {
         assertEquals(phase, child(mojo(goal), "phase").getTextContent());
     }
 
+    // Builds use the plugin's own tool versions unless a POM or -D changes them, so they can't drift.
+    @ParameterizedTest
+    @CsvSource({
+            "lint, ruffVersion, " + BaseMojo.RUFF_VERSION,
+            "format, ruffVersion, " + BaseMojo.RUFF_VERSION,
+            "test, pytestVersion, " + BaseMojo.PYTEST_VERSION,
+    })
+    void toolVersionsArePinnedByDefault(String goal, String parameter, String version) throws Exception {
+        assertEquals(version, child(child(mojo(goal), "configuration"), parameter).getAttribute("default-value"));
+    }
+
     // Maven injects an empty list over a field initializer when the property is unset, so the default has to
     // be on the annotation for the base rules to be enforced when a project configures nothing.
     @Test
@@ -96,6 +107,9 @@ class PluginWiringTest {
             "test, skip, maven.test.skip",
             "lint, skip, python.lint.skip",
             "lint, enforcedRules, python.lint.enforcedRules",
+            "lint, ruffVersion, python.ruff.version",
+            "format, ruffVersion, python.ruff.version",
+            "test, pytestVersion, python.pytest.version",
             "format, skip, python.format.skip",
             "publish, skipPublish, python.publish.skip",
             "publish, skipReleases, python.publish.skipReleases",
