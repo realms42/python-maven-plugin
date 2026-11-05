@@ -3,6 +3,7 @@ package com.github.realms42.mojos;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugins.annotations.LifecyclePhase;
@@ -34,7 +35,7 @@ public class LintMojo extends BaseMojo {
         List<String> rules = enforcedRules == null ? List.of() : enforcedRules.stream()
                 .map(String::trim)
                 .filter(rule -> !rule.isEmpty())
-                .toList();
+                .collect(Collectors.toList());
         if (!rules.isEmpty()) {
             args.add("--extend-select");
             args.add(String.join(",", rules));
