@@ -3,6 +3,7 @@ package com.github.realms42.mojos;
 import static com.github.realms42.mojos.MojoTesting.configure;
 import static com.github.realms42.mojos.MojoTesting.log;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -13,6 +14,7 @@ import java.util.Map;
 import java.util.Set;
 
 import org.apache.maven.plugin.MojoExecutionException;
+import org.apache.maven.plugin.MojoFailureException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.DisabledOnOs;
 import org.junit.jupiter.api.condition.OS;
@@ -63,9 +65,43 @@ class BaseMojoTest {
     }
 
     @Test
-    void uvRunIsLockedAndLetsTheProjectPinTheTool() {
-        assertEquals(List.of("run", "--locked", "--with", "ruff", "ruff", "format", "--check"),
+    void mavenOfflineModeKeepsUvOffline() {
+        BaseMojo mojo = mojo("1.0.0");
+        mojo.offline = true;
+
+        assertEquals("1", mojo.uvEnvironment().get("UV_OFFLINE"));
+    }
+
+    @Test
+    void uvStaysOnlineWhenMavenIs() {
+        assertFalse(mojo("1.0.0").uvEnvironment().containsKey("UV_OFFLINE"));
+    }
+
+    @Test
+    void uvRunUsesTheSyncedEnvironmentAndLetsTheProjectPinTheTool() {
+        assertEquals(List.of("run", "--no-sync", "--with", "ruff", "ruff", "format", "--check"),
                 mojo("1.0.0").uvRun("ruff", "format", "--check"));
+    }
+
+    @Test
+    void exitCodeOneFromACheckFailsTheBuild() {
+        MojoFailureException e = assertThrows(MojoFailureException.class,
+                () -> mojo("1.0.0").checkExitCode("ruff check", "ruff found lint violations.", 1));
+
+        assertEquals("ruff found lint violations.", e.getMessage());
+    }
+
+    @Test
+    void otherExitCodesFromACheckAreBuildErrorsNamingTheTool() {
+        MojoExecutionException e = assertThrows(MojoExecutionException.class,
+                () -> mojo("1.0.0").checkExitCode("pytest", "There are test failures.", 4));
+
+        assertEquals("`uv run pytest` failed with exit code 4. See the output above.", e.getMessage());
+    }
+
+    @Test
+    void exitCodeZeroFromACheckPasses() throws Exception {
+        mojo("1.0.0").checkExitCode("pytest", "There are test failures.", 0);
     }
 
     @Test
@@ -123,6 +159,6 @@ class BaseMojoTest {
         MojoExecutionException e = assertThrows(MojoExecutionException.class,
                 () -> mojo("1.0.0").run("sh", List.of("-c", "exit 3"), Map.of()));
 
-        assertEquals("Command failed with exit code 3", e.getMessage());
+        assertEquals("`sh -c` failed with exit code 3. See the output above.", e.getMessage());
     }
 }

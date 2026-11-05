@@ -21,7 +21,12 @@ import org.apache.maven.settings.crypto.DefaultSettingsDecryptionRequest;
 import org.apache.maven.settings.crypto.SettingsDecrypter;
 import org.apache.maven.settings.crypto.SettingsDecryptionResult;
 
-@Mojo(name = "publish", defaultPhase = LifecyclePhase.DEPLOY)
+/**
+ * Uploads the built distributions to a Python package index with {@code uv publish}. Releases and snapshots go to
+ * separate repositories, and there is no default, so nothing reaches public PyPI by accident. Every file is
+ * validated with a dry run before anything is uploaded. Not bound to the lifecycle by default.
+ */
+@Mojo(name = "publish", defaultPhase = LifecyclePhase.DEPLOY, threadSafe = true)
 public class PublishMojo extends BaseMojo {
 
     @Parameter(defaultValue = "${project.version}", readonly = true)
@@ -33,9 +38,20 @@ public class PublishMojo extends BaseMojo {
     @Component
     private SettingsDecrypter settingsDecrypter;
 
+    /**
+     * The package index that release versions are published to, with an {@code id} naming the
+     * {@code settings.xml} {@code <server>} that holds its credentials, and a {@code url}. Each value falls back to
+     * the {@code python.publish.releaseRepository.id} and {@code .url} properties. Without an id, uv finds
+     * credentials itself ({@code UV_PUBLISH_*}, or trusted publishing).
+     */
     @Parameter
     private PublishRepository releaseRepository;
 
+    /**
+     * The package index that {@code -SNAPSHOT} versions are published to, configured like
+     * {@code releaseRepository}. Each value falls back to the {@code python.publish.snapshotRepository.id} and
+     * {@code .url} properties.
+     */
     @Parameter
     private PublishRepository snapshotRepository;
 
@@ -55,12 +71,15 @@ public class PublishMojo extends BaseMojo {
     @Parameter(defaultValue = "${python.publish.snapshotRepository.url}", readonly = true)
     private String snapshotRepositoryUrl;
 
+    /** Skips publishing. */
     @Parameter(property = "python.publish.skip", defaultValue = "false")
     private boolean skipPublish;
 
+    /** Skips publishing release versions. */
     @Parameter(property = "python.publish.skipReleases", defaultValue = "false")
     private boolean skipReleases;
 
+    /** Skips publishing {@code -SNAPSHOT} versions. */
     @Parameter(property = "python.publish.skipSnapshots", defaultValue = "false")
     private boolean skipSnapshots;
 
@@ -74,6 +93,10 @@ public class PublishMojo extends BaseMojo {
         if (snapshot ? skipSnapshots : skipReleases) {
             getLog().info("Publishing " + (snapshot ? "snapshots" : "releases") + " skipped.");
             return;
+        }
+        if (offline) {
+            throw new MojoExecutionException("Can't publish in offline mode. Run without -o, or skip publishing"
+                    + " with -Dpython.publish.skip.");
         }
         PublishRepository repository = targetRepository(snapshot);
         String target = repository.getUrl();

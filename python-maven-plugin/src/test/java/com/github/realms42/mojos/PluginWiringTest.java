@@ -1,6 +1,7 @@
 package com.github.realms42.mojos;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import java.io.InputStream;
@@ -16,6 +17,7 @@ import javax.xml.parsers.DocumentBuilderFactory;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 
@@ -43,6 +45,28 @@ class PluginWiringTest {
                 "install", List.of("org.apache.maven.plugins:maven-install-plugin:3.1.2:install"),
                 "deploy", List.of("org.apache.maven.plugins:maven-deploy-plugin:3.1.2:deploy")),
                 bindings);
+    }
+
+    // Maven warns about goals not marked thread-safe in parallel builds (-T). Each goal works in its own project's
+    // directory and target/, and uv locks its shared cache itself.
+    @ParameterizedTest
+    @ValueSource(strings = {"build", "test", "package", "lint", "format", "publish"})
+    void goalIsThreadSafe(String goal) throws Exception {
+        assertEquals("true", child(mojo(goal), "threadSafe").getTextContent());
+    }
+
+    // `mvn help:describe` and the plugin's documentation come from Javadoc on the goal and its parameters.
+    @ParameterizedTest
+    @ValueSource(strings = {"build", "test", "package", "lint", "format", "publish"})
+    void goalAndEveryParameterAUserCanSetAreDocumented(String goal) throws Exception {
+        Element mojo = mojo(goal);
+        assertFalse(child(mojo, "description").getTextContent().isBlank(), goal + " has no description");
+        for (Element parameter : children(child(mojo, "parameters"))) {
+            if (Boolean.parseBoolean(child(parameter, "editable").getTextContent())) {
+                assertFalse(child(parameter, "description").getTextContent().isBlank(),
+                        goal + "'s parameter " + child(parameter, "name").getTextContent() + " has no description");
+            }
+        }
     }
 
     @ParameterizedTest

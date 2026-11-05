@@ -78,6 +78,6 @@ class BuildMojoTest {
 
         MojoExecutionException e = assertThrows(MojoExecutionException.class, () -> mojo().execute());
 
-        assertEquals("Command failed with exit code 2", e.getMessage());
+        assertEquals("`uv build` failed with exit code 2. See the output above.", e.getMessage());
     }
 }

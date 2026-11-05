@@ -17,7 +17,11 @@ import org.apache.maven.plugins.annotations.Parameter;
 import org.apache.maven.project.MavenProject;
 import org.apache.maven.project.MavenProjectHelper;
 
-@Mojo(name = "package", defaultPhase = LifecyclePhase.PACKAGE)
+/**
+ * Makes the built distributions the project's Maven artifacts: the sdist is the main artifact, and each wheel is
+ * attached with its compatibility tag (for example {@code py3-none-any}) as the classifier.
+ */
+@Mojo(name = "package", defaultPhase = LifecyclePhase.PACKAGE, threadSafe = true)
 public class PackageMojo extends BaseMojo {
 
     private static final String WHEEL = ".whl";

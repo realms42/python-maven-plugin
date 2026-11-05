@@ -211,6 +211,28 @@ class PublishMojoTest {
     }
 
     @Test
+    void refusesToPublishInOfflineModeWithoutRunningUv() {
+        PublishMojo mojo = withBothRepositories("1.0.0");
+        mojo.offline = true;
+
+        MojoExecutionException e = assertThrows(MojoExecutionException.class, mojo::execute);
+
+        assertTrue(e.getMessage().startsWith("Can't publish in offline mode."), e.getMessage());
+        assertTrue(commands.commands.isEmpty());
+    }
+
+    @Test
+    void skipFlagSkipsPublishingEvenOffline() throws Exception {
+        PublishMojo mojo = mojo("1.0.0");
+        set(mojo, "skipPublish", true);
+        mojo.offline = true;
+
+        mojo.execute();
+
+        assertTrue(commands.commands.isEmpty());
+    }
+
+    @Test
     void publishesOnlyWhatTheBuildWroteToPythonBuild() throws Exception {
         Files.delete(Path.of(sdist));
         Files.delete(Path.of(wheel));

@@ -10,6 +10,7 @@ import java.util.Map;
 
 import org.apache.maven.plugin.AbstractMojo;
 import org.apache.maven.plugin.MojoExecutionException;
+import org.apache.maven.plugin.MojoFailureException;
 import org.apache.maven.plugins.annotations.Parameter;
 import org.apache.maven.shared.utils.cli.CommandLineException;
 import org.apache.maven.shared.utils.cli.CommandLineUtils;
@@ -27,6 +28,9 @@ public abstract class BaseMojo extends AbstractMojo {
     @Parameter(defaultValue = "${project.version}", readonly = true)
     protected String version;
 
+    @Parameter(defaultValue = "${settings.offline}", readonly = true)
+    protected boolean offline;
+
     protected Path getPythonMavenPath() {
         return buildDir.toPath().resolve("python-maven-plugin");
     }
@@ -36,20 +40,50 @@ public abstract class BaseMojo extends AbstractMojo {
     }
 
     // The virtualenv, bytecode and tool caches all go under target/, so a build never writes into the project.
+    // In Maven's offline mode (-o), uv stays offline too and works from its cache.
     protected Map<String, String> uvEnvironment() {
-        return Map.of(
-                "PACKAGE_VERSION", versionToPep440(),
-                "UV_PROJECT_ENVIRONMENT", getPythonMavenPath().resolve(".venv").toString(),
-                "PYTHONPYCACHEPREFIX", getPythonMavenPath().resolve("pycache").toString(),
-                "RUFF_CACHE_DIR", getPythonMavenPath().resolve("ruff-cache").toString());
+        Map<String, String> env = new HashMap<>();
+        env.put("PACKAGE_VERSION", versionToPep440());
+        env.put("UV_PROJECT_ENVIRONMENT", getPythonMavenPath().resolve(".venv").toString());
+        env.put("PYTHONPYCACHEPREFIX", getPythonMavenPath().resolve("pycache").toString());
+        env.put("RUFF_CACHE_DIR", getPythonMavenPath().resolve("ruff-cache").toString());
+        if (offline) {
+            env.put("UV_OFFLINE", "1");
+        }
+        return env;
     }
 
-    // `--with tool` defers to the project's own pin of the tool, if it has one, and uses the
-    // latest release otherwise. `--locked` fails on a missing or stale uv.lock instead of writing it.
+    // Sets up the project's virtualenv before a tool runs in it. `--locked` fails on a missing or stale uv.lock
+    // instead of writing it. Done as its own step so that a uv failure, including a project that fails to build
+    // (which uv reports with exit code 1), is never mistaken for the tool's own exit code 1.
+    protected void uvSync() throws MojoExecutionException {
+        run("uv", Arrays.asList("sync", "--locked"), uvEnvironment());
+    }
+
+    // Runs a tool in the virtualenv set up by uvSync(). `--with tool` defers to the project's own pin of the
+    // tool, if it has one, and uses the latest release otherwise.
     protected List<String> uvRun(String tool, String... args) {
-        List<String> command = new ArrayList<>(Arrays.asList("run", "--locked", "--with", tool, tool));
+        List<String> command = new ArrayList<>(Arrays.asList("run", "--no-sync", "--with", tool, tool));
         command.addAll(Arrays.asList(args));
         return command;
+    }
+
+    // Runs a check such as ruff or pytest. These exit with 1 when the project fails the check, which is a build
+    // failure (the project's fault), and with other codes when they can't run, which is a build error.
+    protected void runCheck(String tool, String failure, List<String> uvArgs)
+            throws MojoExecutionException, MojoFailureException {
+        checkExitCode(tool, failure, exec("uv", uvArgs, uvEnvironment()));
+    }
+
+    protected void checkExitCode(String tool, String failure, int exitCode)
+            throws MojoExecutionException, MojoFailureException {
+        if (exitCode == 1) {
+            throw new MojoFailureException(failure);
+        }
+        if (exitCode != 0) {
+            throw new MojoExecutionException(
+                    "`uv run " + tool + "` failed with exit code " + exitCode + ". See the output above.");
+        }
     }
 
     // Keeps ruff out of Maven's build directory, whether or not the project's .gitignore lists it. A --config
@@ -67,7 +101,9 @@ public abstract class BaseMojo extends AbstractMojo {
     protected void run(String cmd, List<String> args, Map<String, String> envOverrides) throws MojoExecutionException {
         int exitCode = exec(cmd, args, envOverrides);
         if (exitCode != 0) {
-            throw new MojoExecutionException("Command failed with exit code " + exitCode);
+            String name = args.isEmpty() ? cmd : cmd + " " + args.get(0);
+            throw new MojoExecutionException(
+                    "`" + name + "` failed with exit code " + exitCode + ". See the output above.");
         }
     }
 

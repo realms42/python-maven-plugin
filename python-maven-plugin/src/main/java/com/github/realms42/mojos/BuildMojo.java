@@ -12,7 +12,12 @@ import org.apache.maven.plugin.MojoFailureException;
 import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
 
-@Mojo(name = "build", defaultPhase = LifecyclePhase.COMPILE)
+/**
+ * Builds the project's sdist and wheel with {@code uv build} into {@code target/python-build/}, using the project's
+ * own {@code pyproject.toml} and build backend. The Maven version is passed to the backend as
+ * {@code PACKAGE_VERSION}, in PEP 440 form. Distributions from earlier builds are removed first.
+ */
+@Mojo(name = "build", defaultPhase = LifecyclePhase.COMPILE, threadSafe = true)
 public class BuildMojo extends BaseMojo {
 
     @Override

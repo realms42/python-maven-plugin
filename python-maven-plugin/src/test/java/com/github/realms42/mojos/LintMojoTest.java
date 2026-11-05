@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.apache.maven.plugin.MojoExecutionException;
+import org.apache.maven.plugin.MojoFailureException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -42,11 +43,12 @@ class LintMojoTest {
 
         mojo.execute();
 
-        assertEquals(List.of("uv", "run", "--locked", "--with", "ruff", "ruff", "check",
+        assertEquals(List.of("uv", "sync", "--locked"), commands.commands.get(0));
+        assertEquals(List.of("uv", "run", "--no-sync", "--with", "ruff", "ruff", "check",
                 "--config", "extend-exclude = [\"" + project.resolve("target") + "\"]",
-                "--extend-select", "E,W,F,I,B,UP"), commands.commands.get(0));
+                "--extend-select", "E,W,F,I,B,UP"), commands.commands.get(1));
         assertEquals(project.resolve("target/python-maven-plugin/ruff-cache").toString(),
-                commands.environments.get(0).get("RUFF_CACHE_DIR"));
+                commands.environments.get(1).get("RUFF_CACHE_DIR"));
     }
 
     // --extend-select takes precedence over a project's `ignore`, which is what keeps these rules on.
@@ -57,7 +59,7 @@ class LintMojoTest {
 
         mojo.execute();
 
-        List<String> command = commands.commands.get(0);
+        List<String> command = commands.commands.get(1);
         assertEquals(List.of("--extend-select", "E,F,S"), command.subList(command.size() - 2, command.size()));
     }
 
@@ -73,7 +75,7 @@ class LintMojoTest {
         for (List<String> command : commands.commands) {
             assertFalse(command.contains("--extend-select"), command.toString());
         }
-        assertEquals(3, commands.commands.size());
+        assertEquals(6, commands.commands.size());
     }
 
     @Test
@@ -88,11 +90,32 @@ class LintMojoTest {
     }
 
     @Test
-    void failsOnLintErrors() {
+    void failsTheBuildWhenTheProjectFailsTheCheck() {
+        commands.exitingWith(0, 1);
+
+        MojoFailureException e = assertThrows(MojoFailureException.class, () -> mojo().execute());
+
+        assertEquals("ruff found lint violations. See its output above.", e.getMessage());
+    }
+
+    @Test
+    void reportsABuildErrorWhenTheToolCantRun() {
+        commands.exitingWith(0, 2);
+
+        MojoExecutionException e = assertThrows(MojoExecutionException.class, () -> mojo().execute());
+
+        assertEquals("`uv run ruff check` failed with exit code 2. See the output above.", e.getMessage());
+    }
+
+    // uv also exits with 1, for example when the project fails to build, so the environment is set up in its
+    // own step and a failure there is never reported as the check failing.
+    @Test
+    void reportsABuildErrorWithoutRunningTheToolWhenUvCantSetUpTheProject() {
         commands.exitingWith(1);
 
         MojoExecutionException e = assertThrows(MojoExecutionException.class, () -> mojo().execute());
 
-        assertEquals("Command failed with exit code 1", e.getMessage());
+        assertEquals("`uv sync` failed with exit code 1. See the output above.", e.getMessage());
+        assertEquals(1, commands.commands.size());
     }
 }
