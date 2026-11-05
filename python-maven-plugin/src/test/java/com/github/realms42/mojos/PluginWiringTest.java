@@ -58,11 +58,20 @@ class PluginWiringTest {
         assertEquals(phase, child(mojo(goal), "phase").getTextContent());
     }
 
+    // Maven injects an empty list over a field initializer when the property is unset, so the default has to
+    // be on the annotation for the base rules to be enforced when a project configures nothing.
+    @Test
+    void lintEnforcesTheBaseRulesByDefault() throws Exception {
+        Element enforcedRules = child(child(mojo("lint"), "configuration"), "enforcedRules");
+        assertEquals("E,W,F,I,B,UP", enforcedRules.getAttribute("default-value"));
+    }
+
     @ParameterizedTest
     @CsvSource({
             "test, skipTests, skipTests",
             "test, skip, maven.test.skip",
             "lint, skip, python.lint.skip",
+            "lint, enforcedRules, python.lint.enforcedRules",
             "format, skip, python.format.skip",
             "publish, skipPublish, python.publish.skip",
             "publish, skipReleases, python.publish.skipReleases",
