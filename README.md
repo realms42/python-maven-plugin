@@ -105,18 +105,60 @@ extend-select = ["N"]
 - **Outside Maven**, `ruff` reads that configuration as usual, so running it by hand uses the project's settings.
 - **Under Maven**, the base rules are added on top of the project's configuration with `--extend-select`. The
   project's `select` and `ignore` can't switch them off. Use `per-file-ignores` or `# noqa` for justified exceptions.
-- **Other settings** (`line-length`, formatter options, excludes, ...) are the project's own; the plugin sets none.
-- **Changing the base** is done with the `enforcedRules` parameter, for example in a parent POM so that it applies
-  to every project below it. An empty value lints with the project's own configuration alone.
+- **Other settings** (`line-length`, formatter options, excludes, ...) are the project's own, unless `ruffSettings`
+  names them (see below).
+- **Changing the base** is done with the `enforcedRules` parameter, usually in a parent POM (see below), or with
+  `-Dpython.lint.enforcedRules=E,F,S`. An empty value lints with the project's own configuration alone.
+
+## Configuring many projects from a parent POM
+
+Everything the plugin applies to a project is a Maven parameter, so one parent POM can configure every project
+below it, and changing a policy never needs a new plugin release. Put the configuration in the parent's
+`<pluginManagement>`:
 
 ```xml
-<configuration>
-  <enforcedRules>
-    <rule>E</rule>
-    <rule>F</rule>
-    <rule>S</rule>
-  </enforcedRules>
-</configuration>
+<build>
+  <pluginManagement>
+    <plugins>
+      <plugin>
+        <groupId>com.github.realms42</groupId>
+        <artifactId>python-maven-plugin</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+        <configuration>
+          <!-- The base ruleset: added to each project's own rules, can't be switched off by them. -->
+          <enforcedRules>
+            <rule>E</rule>
+            <rule>F</rule>
+            <rule>B</rule>
+          </enforcedRules>
+          <!-- Any other ruff setting, for lint and format. Keys are ruff's setting names, dotted for nested
+               sections; values are TOML, so strings need quotes. -->
+          <ruffSettings>
+            <line-length>100</line-length>
+            <target-version>"py311"</target-version>
+            <format.quote-style>"double"</format.quote-style>
+          </ruffSettings>
+          <!-- The tool versions the plugin runs. -->
+          <ruffVersion>0.17.3</ruffVersion>
+          <pytestVersion>9.2.0</pytestVersion>
+        </configuration>
+      </plugin>
+    </plugins>
+  </pluginManagement>
+</build>
 ```
 
-It can also be set with `-Dpython.lint.enforcedRules=E,F,S`.
+| Parameter | Applies to | Default |
+|---|---|---|
+| `enforcedRules` | `lint` | `E, W, F, I, B, UP` |
+| `ruffSettings` | `lint`, `format` | none |
+| `ruffVersion` | `lint`, `format` | 0.17.3 |
+| `pytestVersion` | `test` | 9.2.0 |
+
+- **`ruffSettings` override the project's own value** for each setting they name, because ruff applies them as
+  `--config` overrides on top of the project's configuration. Every setting they don't name stays the project's,
+  and running ruff outside Maven uses the project's configuration alone.
+- **A child POM can override single entries.** Maven merges a child's `<ruffSettings>` with its parent's entry by
+  entry, so a child that sets only `<line-length>120</line-length>` keeps the parent's other settings. To replace
+  the parent's whole map, use `<ruffSettings combine.self="override">`.
+- **A malformed value fails the build** with ruff's own error, as a build error rather than as lint violations.

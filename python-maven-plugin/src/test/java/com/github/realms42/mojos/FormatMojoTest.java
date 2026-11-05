@@ -51,6 +51,18 @@ class FormatMojoTest {
     }
 
     @Test
+    void appliesTheRuffSettingsToo() throws Exception {
+        FormatMojo mojo = mojo();
+        set(mojo, "ruffSettings", Map.of("format.quote-style", "\"single\"", "line-length", "100"));
+
+        mojo.execute();
+
+        List<String> command = commands.commands.get(2);
+        assertEquals(List.of("--config", "format.quote-style = \"single\"", "--config", "line-length = 100"),
+                command.subList(command.size() - 4, command.size()));
+    }
+
+    @Test
     void skipFlagSkipsTheCheck() throws Exception {
         FormatMojo mojo = mojo();
         set(mojo, "skip", true);

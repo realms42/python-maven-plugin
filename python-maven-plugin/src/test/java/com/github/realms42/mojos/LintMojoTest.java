@@ -10,6 +10,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.file.Path;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -76,6 +77,40 @@ class LintMojoTest {
         mojo.execute();
 
         assertEquals("ruff==0.15.0", commands.commands.get(1).get(5));
+    }
+
+    // A parent POM's ruff settings are --config overrides, applied over the project's own configuration. They are
+    // passed in a stable order, whatever order Maven's map has.
+    @Test
+    void appliesTheRuffSettingsOverTheProjectsOwnConfiguration() throws Exception {
+        LintMojo mojo = mojo();
+        Map<String, String> settings = new HashMap<>();
+        settings.put("target-version", "\"py311\"");
+        settings.put("line-length", " 100 ");
+        settings.put("lint.pydocstyle.convention", "\"google\"");
+        set(mojo, "ruffSettings", settings);
+
+        mojo.execute();
+
+        assertEquals(List.of(BaseMojo.venvExecutable(tools(), "ruff").toString(), "check",
+                "--config", "extend-exclude = [\"" + project.resolve("target") + "\"]",
+                "--config", "line-length = 100",
+                "--config", "lint.pydocstyle.convention = \"google\"",
+                "--config", "target-version = \"py311\"",
+                "--extend-select", "E,W,F,I,B,UP"), commands.commands.get(2));
+    }
+
+    @Test
+    void rejectsARuffSettingWithoutAValueBeforeRunningAnything() {
+        LintMojo mojo = mojo();
+        Map<String, String> settings = new HashMap<>();
+        settings.put("line-length", null);
+        set(mojo, "ruffSettings", settings);
+
+        MojoExecutionException e = assertThrows(MojoExecutionException.class, mojo::execute);
+
+        assertTrue(e.getMessage().startsWith("The ruffSettings entry <line-length> has no value."), e.getMessage());
+        assertTrue(commands.commands.isEmpty());
     }
 
     // --extend-select takes precedence over a project's `ignore`, which is what keeps these rules on.

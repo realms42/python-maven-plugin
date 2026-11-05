@@ -82,6 +82,21 @@ class PluginWiringTest {
         assertEquals(phase, child(mojo(goal), "phase").getTextContent());
     }
 
+    // A parent POM configures ruff once, at plugin level, for both goals that run it. The other goals don't
+    // take the ruff parameters, so `help:describe` doesn't show them there.
+    @ParameterizedTest
+    @CsvSource({
+            "lint, true", "format, true",
+            "build, false", "test, false", "package, false", "publish, false",
+    })
+    void onlyTheRuffGoalsTakeTheRuffParameters(String goal, boolean ruff) throws Exception {
+        for (String name : List.of("ruffVersion", "ruffSettings")) {
+            boolean has = children(child(mojo(goal), "parameters")).stream()
+                    .anyMatch(p -> name.equals(child(p, "name").getTextContent()));
+            assertEquals(ruff, has, goal + " / " + name);
+        }
+    }
+
     // Builds use the plugin's own tool versions unless a POM or -D changes them, so they can't drift.
     @ParameterizedTest
     @CsvSource({
