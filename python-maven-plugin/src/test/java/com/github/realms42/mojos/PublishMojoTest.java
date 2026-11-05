@@ -210,6 +210,38 @@ class PublishMojoTest {
         assertEquals(List.of("Publishing skipped."), log(mojo).info);
     }
 
+    // Nothing is ever published to public PyPI or TestPyPI, whatever the configuration says.
+    @ParameterizedTest
+    @ValueSource(strings = {
+            "https://upload.pypi.org/legacy/",
+            "https://test.pypi.org/legacy/",
+            "https://pypi.org/simple/",
+            "HTTPS://Upload.PyPI.org./legacy/",
+            "https://files.pythonhosted.org/",
+            "https://pypi.python.org/pypi",
+    })
+    void refusesPublicPackageIndexesWithoutRunningUv(String url) {
+        PublishMojo mojo = mojo("1.0.0");
+        set(mojo, "releaseRepositoryUrl", url);
+
+        MojoExecutionException e = assertThrows(MojoExecutionException.class, mojo::execute);
+
+        assertTrue(e.getMessage().startsWith("Refusing to publish to " + url + ": it is a public package index"),
+                e.getMessage());
+        assertTrue(commands.commands.isEmpty());
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"https://pypi.org.example.com/simple/", "https://notpypi.org/", "https://mypypi.org/"})
+    void privateIndexesWithSimilarNamesAreNotRefused(String url) throws Exception {
+        PublishMojo mojo = mojo("1.0.0");
+        set(mojo, "releaseRepositoryUrl", url);
+
+        mojo.execute();
+
+        assertEquals(2, commands.commands.size());
+    }
+
     @Test
     void refusesToPublishInOfflineModeWithoutRunningUv() {
         PublishMojo mojo = withBothRepositories("1.0.0");

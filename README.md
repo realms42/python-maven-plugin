@@ -8,18 +8,22 @@ requires. The `build` goal logs the result:
 | Maven version | Python version |
 |---|---|
 | `1.0.0` | `1.0.0` |
-| `1.0.0-SNAPSHOT` | `1.0.0.dev0` |
+| `1.0.0-SNAPSHOT` | `1.0.0.dev20261105152300`: the build's start time, UTC |
 | `1.0.0-alpha-1`, `-beta-2`, `-rc-3` | `1.0.0a1`, `1.0.0b2`, `1.0.0rc3` |
 | `1.0.0.Final`, `.RELEASE`, `-GA` | `1.0.0` |
-| `1.0.0-feature_name-SNAPSHOT` | `1.0.0.dev0+feature.name` |
+| `1.0.0-feature_name-SNAPSHOT` | `1.0.0.dev20261105152300+feature.name` |
 | `1.0.0-M1` | rejected: Python has no milestones; use `-alpha-1` or `-rc-1` |
 
 Gitflow and git-based versioning (gitflow-maven-plugin, jgitver) put the branch name in feature branch versions.
 The only place PEP 440 allows such text is the local version label after the `+`: lowercased, with every run of
 other characters turned into a `.`. It keeps builds of different branches apart, and sorts right after the base
 version, before any pre-release. A qualifier only counts as a pre-release when it is nothing else, so a branch
-named `rc-fixes` or `a-team` stays a branch. PyPI, and indexes that follow its rules, reject local versions, so
-feature branch builds can only be published to an index that accepts them.
+named `rc-fixes` or `a-team` stays a branch. Indexes that follow PyPI's rules reject local versions, so feature
+branch builds can only be published to an index that accepts them.
+
+A snapshot's dev number is the time the Maven build started, in UTC. Every goal and every module of one build gets
+the same one, and each new build a later one, so snapshots can be published again and again: package indexes
+refuse a second upload of the same version, which a fixed `.dev0` would hit on the second publish.
 
 The plugin passes the version to `uv build` through the variables that version-from-git backends already read,
 so a project needs no Maven-specific configuration:
@@ -109,6 +113,20 @@ extend-select = ["N"]
   names them (see below).
 - **Changing the base** is done with the `enforcedRules` parameter, usually in a parent POM (see below), or with
   `-Dpython.lint.enforcedRules=E,F,S`. An empty value lints with the project's own configuration alone.
+
+## Publishing
+
+The optional `publish` goal uploads the built distributions with `uv publish`, to **private** package indexes only:
+
+- **Public PyPI and TestPyPI are always refused** (`pypi.org`, `test.pypi.org`, `upload.pypi.org`, `pythonhosted.org`),
+  whatever the configuration says, before uv runs.
+- **There is no default repository.** Releases and snapshots each need a configured URL, so nothing is uploaded
+  anywhere unless a POM or `-D` says where.
+- **It isn't bound to the lifecycle**, so `mvn deploy` doesn't run it unless a POM adds an execution.
+- **Every file is validated with a dry run** before anything is uploaded.
+
+`mvn deploy` still runs Maven's own deploy plugin, as for any Maven project: it uploads the sdist and wheel as Maven
+artifacts to the POM's `<distributionManagement>` repository, and fails if there is none.
 
 ## Configuring many projects from a parent POM
 

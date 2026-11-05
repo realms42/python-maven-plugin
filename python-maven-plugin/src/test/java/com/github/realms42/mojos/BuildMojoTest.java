@@ -44,8 +44,8 @@ class BuildMojoTest {
         assertEquals(
                 List.of("uv", "build", "--out-dir", project.resolve("target/python-build").toString()),
                 commands.commands.get(0));
-        assertEquals("3.1.0.dev0", commands.environments.get(0).get("SETUPTOOLS_SCM_PRETEND_VERSION"));
-        assertEquals("3.1.0.dev0", commands.environments.get(0).get("PDM_BUILD_SCM_VERSION"));
+        assertEquals("3.1.0.dev20261105152300", commands.environments.get(0).get("SETUPTOOLS_SCM_PRETEND_VERSION"));
+        assertEquals("3.1.0.dev20261105152300", commands.environments.get(0).get("PDM_BUILD_SCM_VERSION"));
     }
 
     @Test
@@ -56,9 +56,9 @@ class BuildMojoTest {
         mojo.execute();
 
         assertTrue(log(mojo).info.contains(
-                "Python version: 3.1.0.dev0+feature.login (from Maven version 3.1.0-feature_login-SNAPSHOT)"),
+                "Python version: 3.1.0.dev20261105152300+feature.login (from Maven version 3.1.0-feature_login-SNAPSHOT)"),
                 () -> "info: " + log(mojo).info);
-        assertEquals("3.1.0.dev0+feature.login",
+        assertEquals("3.1.0.dev20261105152300+feature.login",
                 commands.environments.get(0).get("SETUPTOOLS_SCM_PRETEND_VERSION"));
     }
 

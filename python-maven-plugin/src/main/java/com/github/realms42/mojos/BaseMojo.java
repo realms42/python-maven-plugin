@@ -3,7 +3,11 @@ package com.github.realms42.mojos;
 import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Instant;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -38,6 +42,11 @@ public abstract class BaseMojo extends AbstractMojo {
 
     @Parameter(defaultValue = "${settings.offline}", readonly = true)
     protected boolean offline;
+
+    // When this Maven build started: the same for every goal and every module of a reactor build, so they all
+    // give a snapshot the same timestamp.
+    @Parameter(defaultValue = "${session.request.startTime}", readonly = true)
+    protected Date buildStartTime;
 
     protected Path getPythonMavenPath() {
         return buildDir.toPath().resolve("python-maven-plugin");
@@ -154,13 +163,15 @@ public abstract class BaseMojo extends AbstractMojo {
 
     // Converts the Maven version to PEP 440, which Python packaging requires:
     //   1.0.0                          -> 1.0.0
-    //   1.0.0-SNAPSHOT                 -> 1.0.0.dev0
+    //   1.0.0-SNAPSHOT                 -> 1.0.0.dev20261105152300 (when the build started, UTC)
     //   1.0.0-rc-1, -beta-2, -alpha3   -> 1.0.0rc1, 1.0.0b2, 1.0.0a3
     //   1.0.0.Final, .RELEASE, -GA     -> 1.0.0
-    //   1.0.0-feature_name-SNAPSHOT    -> 1.0.0.dev0+feature.name
+    //   1.0.0-feature_name-SNAPSHOT    -> 1.0.0.dev20261105152300+feature.name
     // Any other qualifier, such as the branch name gitflow and git-based versioning put in feature branch
     // versions, has no place in a PEP 440 version except the local version label after the `+`. It keeps
     // builds of different branches apart. Package indexes that follow PyPI's rules reject local versions.
+    // A snapshot's dev number is the build's start time, so each snapshot build has its own version, which
+    // sorts after the previous one: package indexes refuse a second upload of the same version.
     // A qualifier only counts as a pre-release when it is nothing else, so `-a-team` or `-rc-fixes` is a
     // branch, not an alpha or release candidate.
     protected String versionToPep440() throws MojoExecutionException {
@@ -191,7 +202,8 @@ public abstract class BaseMojo extends AbstractMojo {
             local = qualifier.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9]+", ".").replaceAll("^\\.|\\.$", "");
         }
         if (snapshot) {
-            pep440.append(".dev0");
+            Instant start = buildStartTime == null ? Instant.now() : buildStartTime.toInstant();
+            pep440.append(".dev").append(SNAPSHOT_TIMESTAMP.format(start));
         }
         if (!local.isEmpty()) {
             pep440.append('+').append(local);
@@ -200,6 +212,8 @@ public abstract class BaseMojo extends AbstractMojo {
     }
 
     private static final String SNAPSHOT = "-SNAPSHOT";
+    private static final DateTimeFormatter SNAPSHOT_TIMESTAMP =
+            DateTimeFormatter.ofPattern("yyyyMMddHHmmss").withZone(ZoneOffset.UTC);
     // The numeric release, then an optional qualifier after a `-` or `.`.
     private static final Pattern MAVEN_VERSION = Pattern.compile("(\\d+(?:\\.\\d+)*)(?:[.-](.+))?");
     // As Maven reads them: `a` and `b` only with a number (a1, b2), the long forms with or without one.
