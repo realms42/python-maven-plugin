@@ -26,18 +26,19 @@ public class BuildMojo extends BaseMojo {
 
     @Override
     public void execute() throws MojoExecutionException, MojoFailureException {
+        String pep440 = versionToPep440();
+        getLog().info("Python version: " + pep440 + " (from Maven version " + version + ")");
         deleteRecursively(getPythonBuildPath());
-        run("uv", Arrays.asList("build", "--out-dir", getPythonBuildPath().toString()), buildEnvironment());
+        run("uv", Arrays.asList("build", "--out-dir", getPythonBuildPath().toString()), buildEnvironment(pep440));
     }
 
     // Only for `uv build`, which builds the project alone. These variables apply to every package a backend
     // builds, so setting them for `uv sync` would also give the project's version to any dependency built from
     // source there, such as a path or git dependency.
-    Map<String, String> buildEnvironment() {
+    private Map<String, String> buildEnvironment(String pep440) {
         Map<String, String> env = uvEnvironment();
-        String version = versionToPep440();
-        env.put("SETUPTOOLS_SCM_PRETEND_VERSION", version);
-        env.put("PDM_BUILD_SCM_VERSION", version);
+        env.put("SETUPTOOLS_SCM_PRETEND_VERSION", pep440);
+        env.put("PDM_BUILD_SCM_VERSION", pep440);
         return env;
     }
 

@@ -50,9 +50,42 @@ class BaseMojoTest {
             "1.0.0.RELEASE, 1.0.0",
             "1.0.0.Final, 1.0.0",
             "1.0.0-GA, 1.0.0",
+            "1.0.0-beta, 1.0.0b0",
+            "1.0.0-cr-2, 1.0.0rc2",
+            "1.0.0-a1, 1.0.0a1",
+            "1.0.0-RC1-SNAPSHOT, 1.0.0rc1.dev0",
+            "1.0.0-snapshot, 1.0.0.dev0",
+            // gitflow-maven-plugin: hotfix and feature branch versions
+            "1.0.2.1-SNAPSHOT, 1.0.2.1.dev0",
+            "1.0.0-feature_name-SNAPSHOT, 1.0.0.dev0+feature.name",
+            "1.0.0-feature/JIRA-42_Add-Login-SNAPSHOT, 1.0.0.dev0+feature.jira.42.add.login",
+            // git-branch-as-version, jgitver-style branch and distance qualifiers
+            "2.1.4-TR-123-SNAPSHOT, 2.1.4.dev0+tr.123",
+            "1.0.1-3-SNAPSHOT, 1.0.1.dev0+3",
+            "1.0.0-my-feature, 1.0.0+my.feature",
+            // Branch names that start like a pre-release are still branch names.
+            "1.0.0-a-team-SNAPSHOT, 1.0.0.dev0+a.team",
+            "1.0.0-rc-fixes-SNAPSHOT, 1.0.0.dev0+rc.fixes",
+            "1.0.0-beta_feature, 1.0.0+beta.feature",
+            "1.0.0-b-SNAPSHOT, 1.0.0.dev0+b",
     })
-    void convertsTheMavenVersionToPep440(String maven, String pep440) {
+    void convertsTheMavenVersionToPep440(String maven, String pep440) throws Exception {
         assertEquals(pep440, mojo(maven).versionToPep440());
+    }
+
+    @ParameterizedTest
+    @CsvSource(delimiter = '|', value = {
+            "1.0.0-M1 | Python has no milestone releases",
+            "1.0.0-milestone-2-SNAPSHOT | Python has no milestone releases",
+            "latest | it must start with a numeric release",
+            "SNAPSHOT | it must start with a numeric release",
+            "v1.0.0 | it must start with a numeric release",
+    })
+    void rejectsVersionsWithNoPep440Equivalent(String maven, String reason) {
+        MojoExecutionException e = assertThrows(MojoExecutionException.class, () -> mojo(maven).versionToPep440());
+
+        assertTrue(e.getMessage().startsWith("Can't convert the Maven version " + maven + " "), e.getMessage());
+        assertTrue(e.getMessage().contains(reason), e.getMessage());
     }
 
     @Test

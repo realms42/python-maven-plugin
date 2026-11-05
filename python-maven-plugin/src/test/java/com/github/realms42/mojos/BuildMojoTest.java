@@ -1,8 +1,10 @@
 package com.github.realms42.mojos;
 
 import static com.github.realms42.mojos.MojoTesting.configure;
+import static com.github.realms42.mojos.MojoTesting.log;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -44,6 +46,33 @@ class BuildMojoTest {
                 commands.commands.get(0));
         assertEquals("3.1.0.dev0", commands.environments.get(0).get("SETUPTOOLS_SCM_PRETEND_VERSION"));
         assertEquals("3.1.0.dev0", commands.environments.get(0).get("PDM_BUILD_SCM_VERSION"));
+    }
+
+    @Test
+    void logsThePythonVersionAFeatureBranchBuildGets() throws Exception {
+        BuildMojo mojo = mojo();
+        mojo.version = "3.1.0-feature_login-SNAPSHOT";
+
+        mojo.execute();
+
+        assertTrue(log(mojo).info.contains(
+                "Python version: 3.1.0.dev0+feature.login (from Maven version 3.1.0-feature_login-SNAPSHOT)"),
+                () -> "info: " + log(mojo).info);
+        assertEquals("3.1.0.dev0+feature.login",
+                commands.environments.get(0).get("SETUPTOOLS_SCM_PRETEND_VERSION"));
+    }
+
+    @Test
+    void failsBeforeBuildingWhenTheVersionHasNoPep440Equivalent() throws Exception {
+        Path output = Files.createDirectories(project.resolve("target/python-build"));
+        Files.writeString(output.resolve("example-3.0.0.tar.gz"), "from an earlier build");
+        BuildMojo mojo = mojo();
+        mojo.version = "3.1.0-M1";
+
+        assertThrows(MojoExecutionException.class, mojo::execute);
+
+        assertTrue(commands.commands.isEmpty());
+        assertTrue(Files.exists(output.resolve("example-3.0.0.tar.gz")), "kept the earlier build's distributions");
     }
 
     @Test

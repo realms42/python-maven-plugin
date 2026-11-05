@@ -6,7 +6,10 @@ import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.apache.maven.plugin.AbstractMojo;
 import org.apache.maven.plugin.MojoExecutionException;
@@ -149,13 +152,61 @@ public abstract class BaseMojo extends AbstractMojo {
         }
     }
 
-    protected String versionToPep440() {
-        String v = version.replaceAll("(?i)[.\\-](RELEASE|Final|GA)$", "");
-        v = v.replaceAll("(?i)-SNAPSHOT$", ".dev0");
-        v = v.replaceAll("(?i)-alpha-?(\\d+)$", "a$1");
-        v = v.replaceAll("(?i)-beta-?(\\d+)$", "b$1");
-        v = v.replaceAll("(?i)-rc-?(\\d+)$", "rc$1");
-        return v;
+    // Converts the Maven version to PEP 440, which Python packaging requires:
+    //   1.0.0                          -> 1.0.0
+    //   1.0.0-SNAPSHOT                 -> 1.0.0.dev0
+    //   1.0.0-rc-1, -beta-2, -alpha3   -> 1.0.0rc1, 1.0.0b2, 1.0.0a3
+    //   1.0.0.Final, .RELEASE, -GA     -> 1.0.0
+    //   1.0.0-feature_name-SNAPSHOT    -> 1.0.0.dev0+feature.name
+    // Any other qualifier, such as the branch name gitflow and git-based versioning put in feature branch
+    // versions, has no place in a PEP 440 version except the local version label after the `+`. It keeps
+    // builds of different branches apart. Package indexes that follow PyPI's rules reject local versions.
+    // A qualifier only counts as a pre-release when it is nothing else, so `-a-team` or `-rc-fixes` is a
+    // branch, not an alpha or release candidate.
+    protected String versionToPep440() throws MojoExecutionException {
+        String v = version;
+        boolean snapshot = v.regionMatches(true, Math.max(0, v.length() - SNAPSHOT.length()), SNAPSHOT, 0,
+                SNAPSHOT.length());
+        if (snapshot) {
+            v = v.substring(0, v.length() - SNAPSHOT.length());
+        }
+        Matcher parts = MAVEN_VERSION.matcher(v);
+        if (!parts.matches()) {
+            throw new MojoExecutionException("Can't convert the Maven version " + version + " to a Python (PEP 440)"
+                    + " version: it must start with a numeric release, such as 1.0.0.");
+        }
+        StringBuilder pep440 = new StringBuilder(parts.group(1));
+        String qualifier = parts.group(2) == null ? "" : parts.group(2);
+        String local = "";
+        Matcher preRelease = PRE_RELEASE.matcher(qualifier);
+        if (preRelease.matches()) {
+            String label = preRelease.group(1).toLowerCase(Locale.ROOT);
+            pep440.append(label.startsWith("a") ? "a" : label.startsWith("b") ? "b" : "rc");
+            pep440.append(preRelease.group(2).isEmpty() ? "0" : preRelease.group(2));
+        } else if (MILESTONE.matcher(qualifier).matches()) {
+            throw new MojoExecutionException("Can't convert the Maven version " + version + " to a Python (PEP 440)"
+                    + " version: Python has no milestone releases. Use an alpha, beta or release candidate"
+                    + " instead, such as -alpha-1 or -rc-1.");
+        } else if (!RELEASE.matcher(qualifier).matches()) {
+            local = qualifier.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9]+", ".").replaceAll("^\\.|\\.$", "");
+        }
+        if (snapshot) {
+            pep440.append(".dev0");
+        }
+        if (!local.isEmpty()) {
+            pep440.append('+').append(local);
+        }
+        return pep440.toString();
     }
+
+    private static final String SNAPSHOT = "-SNAPSHOT";
+    // The numeric release, then an optional qualifier after a `-` or `.`.
+    private static final Pattern MAVEN_VERSION = Pattern.compile("(\\d+(?:\\.\\d+)*)(?:[.-](.+))?");
+    // As Maven reads them: `a` and `b` only with a number (a1, b2), the long forms with or without one.
+    private static final Pattern PRE_RELEASE =
+            Pattern.compile("(alpha|beta|rc|cr|a(?=[.-]?\\d)|b(?=[.-]?\\d))[.-]?(\\d*)", Pattern.CASE_INSENSITIVE);
+    private static final Pattern MILESTONE =
+            Pattern.compile("(milestone[.-]?\\d*|m[.-]?\\d+)", Pattern.CASE_INSENSITIVE);
+    private static final Pattern RELEASE = Pattern.compile("release|final|ga", Pattern.CASE_INSENSITIVE);
 
 }

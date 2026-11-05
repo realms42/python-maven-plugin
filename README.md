@@ -2,9 +2,27 @@
 
 ## Versioning
 
-The distributions Maven builds get the Maven version, converted to PEP 440 (`1.0.0-SNAPSHOT` becomes
-`1.0.0.dev0`, `-rc-1` becomes `rc1`). The plugin passes it to `uv build` through the variables that
-version-from-git backends already read, so a project needs no Maven-specific configuration:
+The distributions Maven builds get the Maven version, converted to PEP 440, the version format Python packaging
+requires. The `build` goal logs the result:
+
+| Maven version | Python version |
+|---|---|
+| `1.0.0` | `1.0.0` |
+| `1.0.0-SNAPSHOT` | `1.0.0.dev0` |
+| `1.0.0-alpha-1`, `-beta-2`, `-rc-3` | `1.0.0a1`, `1.0.0b2`, `1.0.0rc3` |
+| `1.0.0.Final`, `.RELEASE`, `-GA` | `1.0.0` |
+| `1.0.0-feature_name-SNAPSHOT` | `1.0.0.dev0+feature.name` |
+| `1.0.0-M1` | rejected: Python has no milestones; use `-alpha-1` or `-rc-1` |
+
+Gitflow and git-based versioning (gitflow-maven-plugin, jgitver) put the branch name in feature branch versions.
+The only place PEP 440 allows such text is the local version label after the `+`: lowercased, with every run of
+other characters turned into a `.`. It keeps builds of different branches apart, and sorts right after the base
+version, before any pre-release. A qualifier only counts as a pre-release when it is nothing else, so a branch
+named `rc-fixes` or `a-team` stays a branch. PyPI, and indexes that follow its rules, reject local versions, so
+feature branch builds can only be published to an index that accepts them.
+
+The plugin passes the version to `uv build` through the variables that version-from-git backends already read,
+so a project needs no Maven-specific configuration:
 
 | Variable | Read by |
 |---|---|
