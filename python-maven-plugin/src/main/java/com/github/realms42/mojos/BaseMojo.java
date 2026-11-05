@@ -11,10 +11,12 @@ import java.util.Map;
 import org.apache.maven.plugin.AbstractMojo;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugins.annotations.Parameter;
+import org.apache.maven.shared.utils.cli.CommandLineException;
+import org.apache.maven.shared.utils.cli.CommandLineUtils;
+import org.apache.maven.shared.utils.cli.Commandline;
+import org.apache.maven.shared.utils.cli.StreamConsumer;
 
-import com.github.realms42.util.CommandRunnerUtil;
-
-abstract class BaseMojo extends AbstractMojo {
+public abstract class BaseMojo extends AbstractMojo {
 
     @Parameter(defaultValue = "${project.build.directory}", readonly = true)
     protected File buildDir;
@@ -22,71 +24,78 @@ abstract class BaseMojo extends AbstractMojo {
     @Parameter(defaultValue = "${project.basedir}", readonly = true)
     protected File basePath;
 
+    @Parameter(defaultValue = "${project.version}", readonly = true)
+    protected String version;
+
     protected Path getPythonMavenPath() {
         return buildDir.toPath().resolve("python-maven-plugin");
     }
 
-    protected Path getWorkPath() {
-        return getPythonMavenPath().resolve("work");
+    protected Path getPythonBuildPath() {
+        return buildDir.toPath().resolve("python-build");
     }
 
-    protected Path getBuildPath() {
-        return getPythonMavenPath().resolve("build");
+    // The virtualenv, bytecode and tool caches all go under target/, so a build never writes into the project.
+    protected Map<String, String> uvEnvironment() {
+        return Map.of(
+                "PACKAGE_VERSION", versionToPep440(),
+                "UV_PROJECT_ENVIRONMENT", getPythonMavenPath().resolve(".venv").toString(),
+                "PYTHONPYCACHEPREFIX", getPythonMavenPath().resolve("pycache").toString(),
+                "RUFF_CACHE_DIR", getPythonMavenPath().resolve("ruff-cache").toString());
     }
 
-    /** Clean project venv — only the user's declared dependencies, no plugin tooling. */
-    protected Path getProjectVenvPath() {
-        return getWorkPath().resolve(".venv");
-    }
-
-    /**
-     * Plugin tools venv — contains pytest, ruff, build, and an editable install of
-     * the project so tests can import it. Kept outside work/ so it is never packaged.
-     */
-    protected Path getToolsVenvPath() {
-        return getPythonMavenPath().resolve("tools");
-    }
-
-    protected Path getVenvBinDir() {
-        return venvBinDir(getToolsVenvPath());
-    }
-
-    private static Path venvBinDir(Path venvPath) {
-        String binDir = System.getProperty("os.name").toLowerCase().contains("win") ? "Scripts" : "bin";
-        return venvPath.resolve(binDir);
-    }
-
-    /** Run a command in the plugin tools venv (ruff, pytest, build). */
-    protected void runInVenv(String program, String... args) throws MojoExecutionException {
-        runInVenv(getToolsVenvPath(), program, args);
-    }
-
-    /** Run a command in the clean project venv (only the project's own deps). */
-    protected void runInProjectVenv(String program, String... args) throws MojoExecutionException {
-        runInVenv(getProjectVenvPath(), program, args);
-    }
-
-    /**
-     * Run a bare venv command in the project work directory. {@code program} is a
-     * plain executable name such as "ruff" or "pytest"; it is run from the given
-     * venv's bin/Scripts directory, with {@code args} passed through unchanged.
-     * The venv is also "activated" via VIRTUAL_ENV and PATH.
-     *
-     * <p>ProcessBuilder resolves a bare name against the JVM's own PATH rather
-     * than the PATH set here, so pinning the program to the venv's bin dir is
-     * what makes venv-only tools runnable. This intentionally supports bare
-     * commands only — callers pass the tool name, never a path to it.
-     */
-    private void runInVenv(Path venvPath, String program, String... args) throws MojoExecutionException {
-        Path binDir = venvBinDir(venvPath);
-        Map<String, String> env = new HashMap<>();
-        env.put("VIRTUAL_ENV", venvPath.toString());
-        String existingPath = System.getenv("PATH");
-        env.put("PATH", binDir + (existingPath == null ? "" : File.pathSeparator + existingPath));
-        List<String> command = new ArrayList<>();
-        command.add(binDir.resolve(program).toString());
+    // `--with tool` defers to the project's own pin of the tool, if it has one, and uses the
+    // latest release otherwise. `--locked` fails on a missing or stale uv.lock instead of writing it.
+    protected List<String> uvRun(String tool, String... args) {
+        List<String> command = new ArrayList<>(Arrays.asList("run", "--locked", "--with", tool, tool));
         command.addAll(Arrays.asList(args));
-        CommandRunnerUtil.run(getWorkPath(), command, env);
+        return command;
+    }
+
+    // Keeps ruff out of Maven's build directory, whether or not the project's .gitignore lists it. A --config
+    // override adds to the project's own extend-exclude on every ruff since 0.2.2, whereas
+    // `ruff format --extend-exclude` only exists since 0.15.21, newer than a project may have pinned.
+    protected String ruffExcludeBuildDir() {
+        String path = buildDir.getAbsolutePath().replace("\\", "\\\\").replace("\"", "\\\"");
+        return "extend-exclude = [\"" + path + "\"]";
+    }
+
+    protected void run(String cmd, List<String> args) throws MojoExecutionException {
+        run(cmd, args, new HashMap<>());
+    }
+
+    protected void run(String cmd, List<String> args, Map<String, String> envOverrides) throws MojoExecutionException {
+        int exitCode = exec(cmd, args, envOverrides);
+        if (exitCode != 0) {
+            throw new MojoExecutionException("Command failed with exit code " + exitCode);
+        }
+    }
+
+    protected int exec(String cmd, List<String> args, Map<String, String> envOverrides) throws MojoExecutionException {
+        Commandline command = new Commandline();
+        command.setExecutable(cmd);
+        command.setWorkingDirectory(basePath);
+        command.addArguments(args.toArray(String[]::new));
+
+        envOverrides.forEach(command::addEnvironment);
+
+        StreamConsumer stdout = line -> getLog().info(line);
+        StreamConsumer stderr = line -> getLog().info(line);
+        try {
+            getLog().debug("Running command: " + command);
+            return CommandLineUtils.executeCommandLine(command, stdout, stderr);
+        } catch (CommandLineException e) {
+            throw new MojoExecutionException("Failed to log command: " + e.getMessage());
+        }
+    }
+
+    protected String versionToPep440() {
+        String v = version.replaceAll("(?i)[.\\-](RELEASE|Final|GA)$", "");
+        v = v.replaceAll("(?i)-SNAPSHOT$", ".dev0");
+        v = v.replaceAll("(?i)-alpha-?(\\d+)$", "a$1");
+        v = v.replaceAll("(?i)-beta-?(\\d+)$", "b$1");
+        v = v.replaceAll("(?i)-rc-?(\\d+)$", "rc$1");
+        return v;
     }
 
 }

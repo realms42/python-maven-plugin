@@ -58,7 +58,7 @@ tasks:
       - '{{.MVN}} com.github.realms42:python-maven-plugin:lint'
 
   format:
-    desc: Format the example package via the plugin's format goal
+    desc: Check the example package's formatting via the plugin's format goal
     deps: [build]
     dir: '{{.EXAMPLE_DIR}}'
     cmds:

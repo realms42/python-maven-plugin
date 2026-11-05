@@ -8,19 +8,27 @@ import org.apache.maven.plugins.annotations.Parameter;
 @Mojo(name = "test", defaultPhase = LifecyclePhase.TEST)
 public class TestMojo extends BaseMojo {
 
-    @Parameter(defaultValue = "pytest")
-    private String tester;
+    private static final int PYTEST_NO_TESTS_COLLECTED = 5;
 
-    @Parameter(property = "python.test.skip", defaultValue = "false")
+    @Parameter(property = "skipTests", defaultValue = "false")
     private boolean skipTests;
+
+    @Parameter(property = "maven.test.skip", defaultValue = "false")
+    private boolean skip;
 
     @Override
     public void execute() throws MojoExecutionException {
-        if (skipTests) {
-            getLog().info("Tests skipped.");
+        if (skip || skipTests) {
+            getLog().info("Tests are skipped.");
             return;
         }
-        runInVenv(tester);
-        getLog().info("Testing completed with " + tester);
+        String cacheDir = "cache_dir=" + getPythonMavenPath().resolve("pytest-cache");
+        String ignoreBuildDir = "--ignore=" + buildDir.getAbsolutePath();
+        int exitCode = exec("uv", uvRun("pytest", "-o", cacheDir, ignoreBuildDir), uvEnvironment());
+        if (exitCode == PYTEST_NO_TESTS_COLLECTED) {
+            getLog().info("No tests to run.");
+        } else if (exitCode != 0) {
+            throw new MojoExecutionException("Command failed with exit code " + exitCode);
+        }
     }
 }

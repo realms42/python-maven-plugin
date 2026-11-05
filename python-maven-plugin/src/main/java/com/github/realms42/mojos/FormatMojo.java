@@ -5,19 +5,18 @@ import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
 
-@Mojo(name = "format", defaultPhase = LifecyclePhase.TEST)
+@Mojo(name = "format", defaultPhase = LifecyclePhase.VERIFY)
 public class FormatMojo extends BaseMojo {
 
     @Parameter(property = "python.format.skip", defaultValue = "false")
-    private boolean skipFormat;
+    private boolean skip;
 
     @Override
     public void execute() throws MojoExecutionException {
-        if (skipFormat) {
-            getLog().info("Format check skipped.");
+        if (skip) {
+            getLog().info("Format check is skipped.");
             return;
         }
-        runInVenv("ruff", "format", "--check", ".");
-        getLog().info("Code formatting check completed.");
+        run("uv", uvRun("ruff", "format", "--check", "--config", ruffExcludeBuildDir()), uvEnvironment());
     }
 }

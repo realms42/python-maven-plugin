@@ -6,7 +6,7 @@
             <implementation>org.apache.maven.artifact.handler.DefaultArtifactHandler</implementation>
             <configuration>
                 <type>python</type>
-                <extension>zip</extension>
+                <extension>tar.gz</extension>
                 <packaging>python</packaging>
             </configuration>
         </component>
@@ -19,24 +19,25 @@
                     <lifecycle>
                         <id>default</id>
                         <phases>
-                            <initialize>
-                                com.github.realms42:python-maven-plugin:copy-sources
-                            </initialize>
-                            <generate-resources>
-                                com.github.realms42:python-maven-plugin:generate-pyproject,
-                                com.github.realms42:python-maven-plugin:setup-env
-                            </generate-resources>
                             <compile>
                                 com.github.realms42:python-maven-plugin:build
                             </compile>
                             <test>
-                                com.github.realms42:python-maven-plugin:lint,
-                                com.github.realms42:python-maven-plugin:format,
                                 com.github.realms42:python-maven-plugin:test
                             </test>
                             <package>
                                 com.github.realms42:python-maven-plugin:package
                             </package>
+                            <verify>
+                                com.github.realms42:python-maven-plugin:lint,
+                                com.github.realms42:python-maven-plugin:format
+                            </verify>
+                            <install>
+                                org.apache.maven.plugins:maven-install-plugin:3.1.2:install
+                            </install>
+                            <deploy>
+                                org.apache.maven.plugins:maven-deploy-plugin:3.1.2:deploy
+                            </deploy>
                         </phases>
                     </lifecycle>
                 </lifecycles>

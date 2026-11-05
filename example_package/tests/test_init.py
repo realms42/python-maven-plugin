@@ -1,2 +1,2 @@
-def test_version():
-    assert True
+def test_version(version):
+    assert isinstance(version, str)

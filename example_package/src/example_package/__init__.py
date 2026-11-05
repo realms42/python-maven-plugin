@@ -1,6 +1,6 @@
-def main() -> None:
-    print("Hello from example-package!")
+from importlib.metadata import PackageNotFoundError, version
 
-
-if __name__ == "__main__":
-    main()
+try:
+    __version__ = version(__package__)
+except PackageNotFoundError:
+    __version__ = "0.0.0"
