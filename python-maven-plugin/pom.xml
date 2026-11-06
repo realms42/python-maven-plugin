@@ -40,8 +40,8 @@
     <url>https://github.com/realms42/python-maven-plugin/issues</url>
   </issueManagement>
 
-  <!-- No <distributionManagement> yet: where releases go (an internal repository or Maven Central) isn't decided,
-       and without it `mvn deploy` and `release:perform` can't upload anywhere. See "Releasing" in the README. -->
+  <!-- No <distributionManagement>: a plain `mvn deploy` has nowhere to upload and fails. Releases go to Maven
+       Central's staging through the release profile below, and are only published by hand. See "Releasing". -->
 
   <properties>
     <!-- release, not source/target: it also rejects newer JDK APIs, so a build on a newer JDK fails like CI's JDK 11. -->
@@ -167,12 +167,60 @@
   </build>
 
   <profiles>
-    <!-- Builds the source and Javadoc jars that a release publishes alongside the plugin, as repositories such as
-         Maven Central require. Used by release:perform; try it with `mvn -P release verify`. -->
+    <!-- Used by release:perform. Builds the source and Javadoc jars that Maven Central requires alongside the
+         plugin, and deploys to Central's staging only: try the build with `mvn -P release verify`. -->
     <profile>
       <id>release</id>
+      <properties>
+        <!-- central-publishing-maven-plugin below does the upload instead of Maven's deploy plugin. -->
+        <maven.deploy.skip>true</maven.deploy.skip>
+      </properties>
       <build>
         <plugins>
+          <!-- Safeguard: only release versions are deployed. Central publishes -SNAPSHOT versions to its snapshot
+               repository straight away, without staging, so a snapshot fails here, before the upload below. -->
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-enforcer-plugin</artifactId>
+            <version>3.6.3</version>
+            <executions>
+              <execution>
+                <id>release-versions-only</id>
+                <phase>deploy</phase>
+                <goals>
+                  <goal>enforce</goal>
+                </goals>
+                <configuration>
+                  <rules>
+                    <requireReleaseVersion>
+                      <message>Only release versions are deployed to Maven Central.</message>
+                    </requireReleaseVersion>
+                  </rules>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+          <!-- Safeguard: uploads to Maven Central's staging (the Central Portal) and stops there. With autoPublish
+               off, nothing is published until someone presses Publish for the deployment on central.sonatype.com.
+               Credentials: a settings.xml <server> with the id "central" holding a Central Portal token. -->
+          <plugin>
+            <groupId>org.sonatype.central</groupId>
+            <artifactId>central-publishing-maven-plugin</artifactId>
+            <version>0.12.0</version>
+            <executions>
+              <execution>
+                <id>central-staging</id>
+                <phase>deploy</phase>
+                <goals>
+                  <goal>publish</goal>
+                </goals>
+              </execution>
+            </executions>
+            <configuration>
+              <publishingServerId>central</publishingServerId>
+              <autoPublish>false</autoPublish>
+            </configuration>
+          </plugin>
           <plugin>
             <groupId>org.apache.maven.plugins</groupId>
             <artifactId>maven-source-plugin</artifactId>

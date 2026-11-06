@@ -62,7 +62,9 @@ cache-keys = [{ file = "pyproject.toml" }, { git = { commit = true, tags = true 
 ```
 
 **3. Build:** `mvn install` builds, tests, packages, lints and checks the formatting, then installs the sdist and
-wheel into the local Maven repository. `example_package/` is a complete example.
+wheel into the local Maven repository. `example_parent/` and `example_package/` are a complete example: the
+parent holds the plugin and its configuration, the package only names itself, and `mvn install` in
+`example_parent/` builds both.
 
 ## The build
 
@@ -269,11 +271,17 @@ publishing). Snapshot versions are timestamped and feature branch versions carry
 `mvn deploy` still runs Maven's own deploy plugin, as for any Maven project: it uploads the sdist and wheel as Maven
 artifacts to the POM's `<distributionManagement>` repository, and fails if there is none.
 
+**Safeguard in the example:** `example_parent/` points both repositories at PyPI's staging index, TestPyPI, and
+binds `publish` to `deploy`, so the only place an accidental `mvn deploy` could send a package is staging. The
+plugin refuses public indexes, TestPyPI included, so even that fails before anything is uploaded. A real setup
+points them at a private index.
+
 ## Configuring many projects from a parent POM
 
 Everything the plugin applies to a project is a Maven parameter, so one parent POM can configure every project
-below it, and changing a policy never needs a new plugin release. Put the configuration in the parent's
-`<pluginManagement>`:
+below it, and changing a policy never needs a new plugin release. `example_parent/pom.xml` does this for the
+example. Put the configuration in the parent's `<pluginManagement>`, or, as the example does, declare the plugin
+with `<extensions>true</extensions>` in the parent's `<build><plugins>` so that children inherit it outright:
 
 ```xml
 <build>
@@ -354,19 +362,30 @@ checks, which run in CI.
 
 The plugin is prepared for a Maven release but hasn't been released. Prepared:
 
-- **The metadata release repositories expect:** name, description, URL, license (GPL-3.0, as `LICENSE`),
-  developer, source repository and issue tracker.
-- **A `release` profile** that also builds the sources and Javadoc jars. `mvn -P release verify` builds them.
+- **The metadata Maven Central expects:** name, description, URL, license (GPL-3.0, as `LICENSE`), developer,
+  source repository and issue tracker.
+- **A `release` profile**, used by `release:perform`, that also builds the sources and Javadoc jars.
+  `mvn -P release verify` builds them.
 - **`maven-release-plugin`**, set to tag `v<version>` and to push nothing itself.
+- **Deployment to Maven Central's staging only.** The `release` profile deploys with Sonatype's
+  `central-publishing-maven-plugin` and `autoPublish` off: a deployment is uploaded to the Central Portal and
+  validated, and nothing is published until someone presses Publish for it on central.sonatype.com.
 
-Not decided, so not configured: **where releases go.** Without a `<distributionManagement>` repository,
-`mvn deploy` and `release:perform` can't upload anywhere.
+Safeguards, so that a deployment that fires by accident publishes nothing:
 
-- **An internal repository** (Nexus, Artifactory, GitHub Packages): add its `<distributionManagement>` to the POM
-  and its credentials as a `settings.xml` `<server>`.
-- **Maven Central** additionally needs a verified namespace (Central registers GitHub-based namespaces as
-  `io.github.<user>`, so the groupId would likely change from `com.github.realms42`), GPG-signed artifacts
-  (`maven-gpg-plugin`) and Sonatype's `central-publishing-maven-plugin`.
+- **A plain `mvn deploy` fails:** there is no `<distributionManagement>`, so it has nowhere to upload.
+- **Only release versions are deployed.** Central publishes `-SNAPSHOT` versions to its snapshot repository
+  straight away, without staging, so in the `release` profile the Maven Enforcer Plugin refuses snapshot versions
+  in the `deploy` phase, before the upload.
+- **Staging, not publishing,** for release versions, as above.
+
+Still needed before a first release to Central:
+
+- **A verified namespace.** Central registers GitHub-based namespaces as `io.github.<user>`, so the groupId would
+  likely change from `com.github.realms42`.
+- **Signed artifacts:** Central rejects unsigned deployments at validation; add `maven-gpg-plugin` to the
+  `release` profile with a signing key.
+- **Credentials:** a `settings.xml` `<server>` with the id `central` holding a Central Portal user token.
 
 To release, in `python-maven-plugin/`:
 
@@ -375,7 +394,7 @@ To release, in `python-maven-plugin/`:
 2. **Prepare:** `mvn release:prepare` sets the release version, builds and tests it (including the integration
    tests), commits it, tags it `v<version>` and sets the next `-SNAPSHOT`, all locally.
 3. **Push:** `git push --follow-tags`, once the commits and tag look right.
-4. **Perform:** `mvn release:perform` builds the tag with the `release` profile and deploys it to the
-   `<distributionManagement>` repository.
-5. **Follow up:** point `example_package/pom.xml` and this README at the released version.
-
+4. **Perform:** `mvn release:perform` builds the tag with the `release` profile and uploads it to Central's
+   staging.
+5. **Publish:** review the deployment on central.sonatype.com and press Publish, or drop it.
+6. **Follow up:** point `example_parent/pom.xml` and this README at the released version.
