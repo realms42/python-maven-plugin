@@ -180,3 +180,18 @@ below it, and changing a policy never needs a new plugin release. Put the config
   entry, so a child that sets only `<line-length>120</line-length>` keeps the parent's other settings. To replace
   the parent's whole map, use `<ruffSettings combine.self="override">`.
 - **A malformed value fails the build** with ruff's own error, as a build error rather than as lint violations.
+
+## Developing the plugin
+
+`task build` (or `mvn install` in `python-maven-plugin/`) runs the unit tests and the integration tests.
+
+- **Unit tests** (`src/test`) fake every process the plugin starts, so they need no uv, Python or network.
+- **Integration tests** (`src/it`) are small Python projects that real Maven builds with the plugin, using real uv,
+  ruff and pytest; each one's `verify.groovy` then checks the build log and its output. They need `uv` on `PATH`
+  and network access to PyPI for the tools and build backends. They cover what faked processes can't: how Maven
+  injects parameters, parent POM inheritance, reactor builds, and the tools' real exit codes.
+  - `task it` runs only them, and `task it -- -Dinvoker.test=lint-violation` runs one.
+  - `-Dinvoker.skip` skips them, for example to build offline.
+  - A test project's `uv.lock` is committed; regenerate it with `uv lock` in its directory after changing its
+    `pyproject.toml`. `stale-lock` keeps a deliberately outdated one.
+

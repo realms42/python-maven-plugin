@@ -20,7 +20,7 @@ tasks:
     silent: true
 
   build:
-    desc: Compile and install the plugin into the local Maven repo
+    desc: Build, test (unit and integration) and install the plugin into the local Maven repo
     dir: '{{.PLUGIN_DIR}}'
     cmds:
       - '{{.MVN}} install'
@@ -32,10 +32,16 @@ tasks:
       - '{{.MVN}} test'
 
   verify:
-    desc: Run the full plugin verification (tests + checks)
+    desc: Run the full plugin verification (unit and integration tests)
     dir: '{{.PLUGIN_DIR}}'
     cmds:
       - '{{.MVN}} verify'
+
+  it:
+    desc: Run the plugin's integration tests (one with `task it -- -Dinvoker.test=lint-violation`)
+    dir: '{{.PLUGIN_DIR}}'
+    cmds:
+      - '{{.MVN}} verify -DskipTests {{.CLI_ARGS}}'
 
   offline:
     desc: Resolve and cache all plugin dependencies for offline use

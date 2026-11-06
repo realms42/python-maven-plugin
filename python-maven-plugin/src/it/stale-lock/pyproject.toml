@@ -1,0 +1,13 @@
+[project]
+name = "it_pkg"
+description = "A project built by the plugin's integration tests"
+requires-python = ">=3.10"
+dynamic = ["version"]
+
+[build-system]
+requires = ["hatchling", "hatch-vcs"]
+build-backend = "hatchling.build"
+
+[tool.hatch.version]
+source = "vcs"
+fallback-version = "0.0.0"
