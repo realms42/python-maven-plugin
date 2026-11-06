@@ -10,7 +10,38 @@
   <packaging>maven-plugin</packaging>
 
   <name>Python Maven Plugin</name>
-  <description>A maven plugin to integrate Python functionality into Maven projects</description>
+  <description>Builds, tests, lints and packages Python projects with Maven, using uv, ruff and pytest.</description>
+  <url>https://github.com/realms42/python-maven-plugin</url>
+
+  <licenses>
+    <license>
+      <name>GNU General Public License v3.0</name>
+      <url>https://www.gnu.org/licenses/gpl-3.0.txt</url>
+      <distribution>repo</distribution>
+    </license>
+  </licenses>
+
+  <developers>
+    <developer>
+      <id>realms42</id>
+      <url>https://github.com/realms42</url>
+    </developer>
+  </developers>
+
+  <scm>
+    <connection>scm:git:https://github.com/realms42/python-maven-plugin.git</connection>
+    <developerConnection>scm:git:https://github.com/realms42/python-maven-plugin.git</developerConnection>
+    <url>https://github.com/realms42/python-maven-plugin</url>
+    <tag>HEAD</tag>
+  </scm>
+
+  <issueManagement>
+    <system>GitHub Issues</system>
+    <url>https://github.com/realms42/python-maven-plugin/issues</url>
+  </issueManagement>
+
+  <!-- No <distributionManagement> yet: where releases go (an internal repository or Maven Central) isn't decided,
+       and without it `mvn deploy` and `release:perform` can't upload anywhere. See "Releasing" in the README. -->
 
   <properties>
     <!-- release, not source/target: it also rejects newer JDK APIs, so a build on a newer JDK fails like CI's JDK 11. -->
@@ -84,6 +115,21 @@
         <artifactId>maven-surefire-plugin</artifactId>
         <version>3.5.4</version>
       </plugin>
+      <!-- Releases: `mvn release:prepare` sets the release version, builds and tests it, commits and tags it
+           v<version> locally, then sets the next -SNAPSHOT; nothing is pushed until you push the commits and tag.
+           `release:perform` builds the tag with the release profile and deploys it to <distributionManagement>. -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-release-plugin</artifactId>
+        <version>3.3.1</version>
+        <configuration>
+          <tagNameFormat>v@{project.version}</tagNameFormat>
+          <releaseProfiles>release</releaseProfiles>
+          <pushChanges>false</pushChanges>
+          <localCheckout>true</localCheckout>
+          <scmCommentPrefix>[release] </scmCommentPrefix>
+        </configuration>
+      </plugin>
       <!-- Integration tests: each directory under src/it is a Python project built by real Maven, uv, ruff and
            pytest with this plugin, then checked by its verify.groovy. They run in `mvn verify` and later phases;
            -Dinvoker.skip skips them, and -Dinvoker.test=lint-* runs some. -->
@@ -119,5 +165,47 @@
       </plugin>
     </plugins>
   </build>
+
+  <profiles>
+    <!-- Builds the source and Javadoc jars that a release publishes alongside the plugin, as repositories such as
+         Maven Central require. Used by release:perform; try it with `mvn -P release verify`. -->
+    <profile>
+      <id>release</id>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-source-plugin</artifactId>
+            <version>3.4.0</version>
+            <executions>
+              <execution>
+                <id>attach-sources</id>
+                <goals>
+                  <goal>jar-no-fork</goal>
+                </goals>
+              </execution>
+            </executions>
+          </plugin>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-javadoc-plugin</artifactId>
+            <version>3.12.0</version>
+            <configuration>
+              <!-- Every goal and parameter users see is documented; this skips warnings for internal members. -->
+              <doclint>all,-missing</doclint>
+            </configuration>
+            <executions>
+              <execution>
+                <id>attach-javadocs</id>
+                <goals>
+                  <goal>jar</goal>
+                </goals>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+  </profiles>
 
 </project>

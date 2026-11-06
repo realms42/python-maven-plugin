@@ -1,5 +1,94 @@
 # python-maven-plugin
 
+A Maven plugin that builds, tests, lints and packages Python projects, so they fit into Maven builds, parent POMs
+and repositories like any other module. It uses [uv](https://docs.astral.sh/uv/) for environments and builds,
+pytest for tests and ruff for linting and formatting, and works from the project's own `pyproject.toml`: the same
+project builds and runs without Maven too.
+
+## Getting started
+
+**Requirements**
+
+- JDK 11 or later and Maven 3.9 (tested with 3.9.11).
+- [uv](https://docs.astral.sh/uv/) on `PATH` (tested with 0.11 and 0.13). uv finds or downloads a Python that
+  matches the project's `requires-python`.
+- The project's own `pyproject.toml`, with a build backend, and a committed `uv.lock` (run `uv lock`).
+
+The plugin isn't released yet: install it into your local Maven repository with `task build`, or `mvn install` in
+`python-maven-plugin/`.
+
+**1. Declare the plugin** with `<packaging>python</packaging>` and `<extensions>true</extensions>`:
+
+```xml
+<project>
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>com.example</groupId>
+  <artifactId>my-package</artifactId>
+  <version>1.0.0-SNAPSHOT</version>
+  <packaging>python</packaging>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>com.github.realms42</groupId>
+        <artifactId>python-maven-plugin</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+        <extensions>true</extensions>
+      </plugin>
+    </plugins>
+  </build>
+</project>
+```
+
+**2. Let the build backend take its version from Maven**, and from git without Maven. With hatchling and
+hatch-vcs (see [Versioning](#versioning) for why and for other backends):
+
+```toml
+[project]
+name = "my_package"
+requires-python = ">=3.9"
+dynamic = ["version"]
+
+[build-system]
+requires = ["hatchling", "hatch-vcs"]
+build-backend = "hatchling.build"
+
+[tool.hatch.version]
+source = "vcs"
+fallback-version = "0.0.0"
+
+[tool.uv]
+cache-keys = [{ file = "pyproject.toml" }, { git = { commit = true, tags = true } }]
+```
+
+**3. Build:** `mvn install` builds, tests, packages, lints and checks the formatting, then installs the sdist and
+wheel into the local Maven repository. `example_package/` is a complete example.
+
+## The build
+
+`<packaging>python</packaging>` binds the plugin's goals to Maven's lifecycle:
+
+| Phase | Goal | Does | Skip with |
+|---|---|---|---|
+| compile | `build` | `uv build` of the sdist and wheel into `target/python-build/`, with the Maven version | |
+| test | `test` | pytest, with a JUnit report in `target/surefire-reports/` | `-DskipTests`, `-Dmaven.test.skip=true` |
+| package | `package` | the sdist becomes the Maven artifact; each wheel is attached with its tag as classifier | |
+| verify | `lint` | `ruff check`, never `--fix` | `-Dpython.lint.skip` |
+| verify | `format` | `ruff format --check`, never rewrites a file | `-Dpython.format.skip` |
+| install, deploy | Maven's install and deploy plugins | | |
+
+`publish`, which uploads to a Python package index, isn't bound; see [Publishing](#publishing).
+
+- **The build never modifies the project.** Every environment, cache and output goes under
+  `target/python-maven-plugin/` and `target/python-build/`, and ruff never fixes or rewrites anything.
+- **The lock is respected.** The test environment is synced with `uv sync --locked`, which fails on a missing or
+  stale `uv.lock` instead of updating it.
+- **Failures are reported the Maven way.** Lint violations, unformatted files and failing tests fail the build
+  with a message saying which; a tool that can't run (a bad configuration, a stale lock) is a build error naming
+  the command.
+- **`mvn -o`** keeps uv offline too, working from its cache. **Parallel builds** (`-T`) are supported.
+- `mvn help:describe -Dplugin=com.github.realms42:python-maven-plugin -Ddetail` lists every goal and parameter.
+
 ## Versioning
 
 The distributions Maven builds get the Maven version, converted to PEP 440, the version format Python packaging
@@ -124,6 +213,51 @@ The optional `publish` goal uploads the built distributions with `uv publish`, t
   anywhere unless a POM or `-D` says where.
 - **It isn't bound to the lifecycle**, so `mvn deploy` doesn't run it unless a POM adds an execution.
 - **Every file is validated with a dry run** before anything is uploaded.
+- **It fails fast under `mvn -o`**, before uv runs.
+
+Releases and `-SNAPSHOT` versions go to separate repositories, written like `<distributionManagement>`
+repositories. The `id` names the `settings.xml` `<server>` that holds the credentials (encrypted passwords work):
+
+```xml
+<plugin>
+  <groupId>com.github.realms42</groupId>
+  <artifactId>python-maven-plugin</artifactId>
+  <version>1.0.0-SNAPSHOT</version>
+  <extensions>true</extensions>
+  <configuration>
+    <releaseRepository>
+      <id>pypi-releases</id>
+      <url>https://nexus.example.com/repository/pypi-releases/</url>
+    </releaseRepository>
+    <snapshotRepository>
+      <id>pypi-snapshots</id>
+      <url>https://nexus.example.com/repository/pypi-snapshots/</url>
+    </snapshotRepository>
+  </configuration>
+  <executions>
+    <execution>
+      <goals>
+        <goal>publish</goal>
+      </goals>
+    </execution>
+  </executions>
+</plugin>
+```
+
+With that execution it runs in the `deploy` phase; without it, run `mvn python:publish` after a build. Each value
+can also come from a property, for example in a parent POM's `<properties>` or a `settings.xml` profile; a
+configuration block wins value by value:
+
+| Property | Meaning |
+|---|---|
+| `python.publish.releaseRepository.id`, `.url` | The release repository |
+| `python.publish.snapshotRepository.id`, `.url` | The snapshot repository |
+| `python.publish.skipReleases`, `python.publish.skipSnapshots` | Skip publishing releases, or snapshots |
+| `python.publish.skip` | Skip publishing entirely |
+
+Without an `id`, uv finds credentials itself (`UV_PUBLISH_USERNAME` and `UV_PUBLISH_PASSWORD`, or trusted
+publishing). Snapshot versions are timestamped and feature branch versions carry a `+branch` label; see
+[Versioning](#versioning) for what an index has to accept.
 
 `mvn deploy` still runs Maven's own deploy plugin, as for any Maven project: it uploads the sdist and wheel as Maven
 artifacts to the POM's `<distributionManagement>` repository, and fails if there is none.
@@ -205,4 +339,36 @@ below it, and changing a policy never needs a new plugin release. Put the config
   - `-Dinvoker.skip` skips them, for example to build offline.
   - A test project's `uv.lock` is committed; regenerate it with `uv lock` in its directory after changing its
     `pyproject.toml`. `stale-lock` keeps a deliberately outdated one.
+
+The Docker image (`task docker`) only builds: the plugin, then the example, without tests, integration tests or
+checks, which run in CI.
+
+## Releasing the plugin
+
+The plugin is prepared for a Maven release but hasn't been released. Prepared:
+
+- **The metadata release repositories expect:** name, description, URL, license (GPL-3.0, as `LICENSE`),
+  developer, source repository and issue tracker.
+- **A `release` profile** that also builds the sources and Javadoc jars. `mvn -P release verify` builds them.
+- **`maven-release-plugin`**, set to tag `v<version>` and to push nothing itself.
+
+Not decided, so not configured: **where releases go.** Without a `<distributionManagement>` repository,
+`mvn deploy` and `release:perform` can't upload anywhere.
+
+- **An internal repository** (Nexus, Artifactory, GitHub Packages): add its `<distributionManagement>` to the POM
+  and its credentials as a `settings.xml` `<server>`.
+- **Maven Central** additionally needs a verified namespace (Central registers GitHub-based namespaces as
+  `io.github.<user>`, so the groupId would likely change from `com.github.realms42`), GPG-signed artifacts
+  (`maven-gpg-plugin`) and Sonatype's `central-publishing-maven-plugin`.
+
+To release, in `python-maven-plugin/`:
+
+1. **Check:** `mvn release:prepare -DdryRun=true`, then `mvn release:clean`. This builds and tests the release
+   version and shows the POMs it would commit, without committing or tagging anything.
+2. **Prepare:** `mvn release:prepare` sets the release version, builds and tests it (including the integration
+   tests), commits it, tags it `v<version>` and sets the next `-SNAPSHOT`, all locally.
+3. **Push:** `git push --follow-tags`, once the commits and tag look right.
+4. **Perform:** `mvn release:perform` builds the tag with the `release` profile and deploys it to the
+   `<distributionManagement>` repository.
+5. **Follow up:** point `example_package/pom.xml` and this README at the released version.
 
