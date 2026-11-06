@@ -125,6 +125,7 @@ class PluginWiringTest {
             "lint, ruffVersion, python.ruff.version",
             "format, ruffVersion, python.ruff.version",
             "test, pytestVersion, python.pytest.version",
+            "test, testWheel, python.test.wheel",
             "format, skip, python.format.skip",
             "publish, skipPublish, python.publish.skip",
             "publish, skipReleases, python.publish.skipReleases",

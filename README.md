@@ -71,7 +71,7 @@ wheel into the local Maven repository. `example_package/` is a complete example.
 | Phase | Goal | Does | Skip with |
 |---|---|---|---|
 | compile | `build` | `uv build` of the sdist and wheel into `target/python-build/`, with the Maven version | |
-| test | `test` | pytest, with a JUnit report in `target/surefire-reports/` | `-DskipTests`, `-Dmaven.test.skip=true` |
+| test | `test` | pytest against the built wheel, with a JUnit report in `target/surefire-reports/` | `-DskipTests`, `-Dmaven.test.skip=true` |
 | package | `package` | the sdist becomes the Maven artifact; each wheel is attached with its tag as classifier | |
 | verify | `lint` | `ruff check`, never `--fix` | `-Dpython.lint.skip` |
 | verify | `format` | `ruff format --check`, never rewrites a file | `-Dpython.format.skip` |
@@ -81,6 +81,10 @@ wheel into the local Maven repository. `example_package/` is a complete example.
 
 - **The build never modifies the project.** Every environment, cache and output goes under
   `target/python-maven-plugin/` and `target/python-build/`, and ruff never fixes or rewrites anything.
+- **Tests run against the built wheel**, installed in place of the source, so they test what is packaged: a module
+  or data file the wheel leaves out fails them. The wheel carries the Maven version. `-Dpython.test.wheel=false` tests the source tree instead, as an
+  editable install. With a `src/` layout, tests can only import the installed wheel; with a flat layout, a
+  `conftest.py` at the project root lets pytest import the source directory instead.
 - **The lock is respected.** The test environment is synced with `uv sync --locked`, which fails on a missing or
   stale `uv.lock` instead of updating it.
 - **Failures are reported the Maven way.** Lint violations, unformatted files and failing tests fail the build

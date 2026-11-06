@@ -1,11 +1,14 @@
 package com.github.realms42.mojos;
 
+import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.stream.Stream;
 
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.MojoFailureException;
@@ -15,7 +18,8 @@ import org.apache.maven.plugins.annotations.Parameter;
 
 /**
  * Runs the project's tests with the plugin's pinned pytest ({@code pytestVersion}), using the project's own
- * pytest configuration plus the {@code pytestSettings}. The results are also written as a JUnit XML report to
+ * pytest configuration plus the {@code pytestSettings}. By default the tests run against the built wheel
+ * ({@code testWheel}). The results are also written as a JUnit XML report to
  * {@code target/surefire-reports/TEST-pytest.xml}, where CI servers look for Maven test results. When pytest
  * collects no tests, the goal passes, as Surefire does.
  */
@@ -39,6 +43,15 @@ public class TestMojo extends BaseMojo {
      */
     @Parameter(property = "python.pytest.version", defaultValue = PYTEST_VERSION)
     private String pytestVersion;
+
+    /**
+     * Runs the tests against the wheel the {@code build} goal built, installed into the plugin's environment for
+     * the project in place of the project's source, so they test what is packaged: a module or data file the wheel
+     * leaves out fails them. Set it to {@code false} to test the source tree, as an editable install, instead.
+     * With a {@code src/} layout, the tests can only import the installed wheel.
+     */
+    @Parameter(property = "python.test.wheel", defaultValue = "true")
+    private boolean testWheel;
 
     /**
      * pytest options applied on top of the project's own pytest configuration. Each key is a pytest
@@ -78,13 +91,42 @@ public class TestMojo extends BaseMojo {
                 "-o", "cache_dir=" + getPythonMavenPath().resolve("pytest-cache"),
                 "--ignore=" + buildDir.getAbsolutePath(),
                 "--junitxml=" + buildDir.toPath().resolve("surefire-reports").resolve("TEST-pytest.xml")));
-        uvSync();
-        Path pytest = installTool(getProjectVenvPath(), "pytest", pytestVersion);
+        Path pytest;
+        if (testWheel) {
+            Path wheel = builtWheel();
+            // The locked dependencies without the project itself, then the wheel in its place.
+            uvSync("--no-install-project");
+            pytest = installTool(getProjectVenvPath(), "pytest", pytestVersion);
+            run("uv", Arrays.asList("pip", "install", "--python", getProjectVenvPath().toString(), "--no-deps",
+                    "--reinstall", wheel.toString()), uvEnvironment());
+            getLog().info("Testing the built wheel: " + wheel.getFileName());
+        } else {
+            uvSync();
+            pytest = installTool(getProjectVenvPath(), "pytest", pytestVersion);
+            getLog().info("Testing the source tree.");
+        }
         int exitCode = exec(pytest.toString(), args, uvEnvironment());
         if (exitCode == PYTEST_NO_TESTS_COLLECTED) {
             getLog().info("No tests to run.");
             return;
         }
         checkExitCode("pytest", "There are test failures. See pytest's output above.", exitCode);
+    }
+
+    private Path builtWheel() throws MojoExecutionException {
+        List<Path> wheels = new ArrayList<>();
+        if (Files.isDirectory(getPythonBuildPath())) {
+            try (Stream<Path> files = Files.list(getPythonBuildPath())) {
+                files.filter(p -> p.getFileName().toString().endsWith(".whl")).sorted().forEach(wheels::add);
+            } catch (IOException e) {
+                throw new MojoExecutionException("Failed to list " + getPythonBuildPath(), e);
+            }
+        }
+        if (wheels.size() != 1) {
+            throw new MojoExecutionException("Expected exactly one wheel in " + getPythonBuildPath() + " to test,"
+                    + " found " + wheels.size() + ". Run the build goal first, or test the source tree with"
+                    + " -Dpython.test.wheel=false.");
+        }
+        return wheels.get(0);
     }
 }

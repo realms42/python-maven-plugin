@@ -12,10 +12,13 @@ def dists = new File(basedir, "target/python-build").list().findAll { !it.starts
 assert dists.size() == 2, dists
 assert dists.every { it ==~ /it_pkg-1\.0\.0\.dev\d{14}(\.tar\.gz|-py3-none-any\.whl)/ }, dists
 
-// Tests ran with a JUnit report where CI servers look for one.
+// Tests ran against the built wheel, with a JUnit report where CI servers look for one. test_installed.py checks
+// that the package came from site-packages with the Maven version.
+contains("Testing the built wheel: it_pkg-1.0.0.dev")
 def report = new File(basedir, "target/surefire-reports/TEST-pytest.xml")
 assert report.isFile()
-assert report.text =~ /tests="1"/
+assert report.text =~ /tests="2"/
+assert report.text =~ /failures="0"/
 
 // The plugin's environments are under target/, and the project's own .venv is never created.
 assert new File(basedir, "target/python-maven-plugin/tools/.venv").isDirectory()

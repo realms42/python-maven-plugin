@@ -12,12 +12,14 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.MojoFailureException;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -31,9 +33,30 @@ class TestMojoTest {
     Path project;
 
     private final Commands commands = new Commands();
+    private Path wheel;
+
+    @BeforeEach
+    void buildAWheel() throws IOException {
+        Path output = Files.createDirectories(project.resolve("target/python-build"));
+        wheel = Files.writeString(output.resolve("example-1.2.0.dev1-py3-none-any.whl"), "wheel");
+        Files.writeString(output.resolve("example-1.2.0.dev1.tar.gz"), "sdist");
+        Files.writeString(output.resolve(".gitignore"), "*");
+    }
 
     private Path venv() {
         return project.resolve("target/python-maven-plugin/.venv");
+    }
+
+    private List<String> pytestCommand(String... options) {
+        Path work = project.resolve("target/python-maven-plugin");
+        List<String> command = new ArrayList<>();
+        command.add(BaseMojo.venvExecutable(venv(), "pytest").toString());
+        command.addAll(List.of(options));
+        command.addAll(List.of(
+                "-o", "cache_dir=" + work.resolve("pytest-cache"),
+                "--ignore=" + project.resolve("target"),
+                "--junitxml=" + project.resolve("target/surefire-reports/TEST-pytest.xml")));
+        return command;
     }
 
     private TestMojo mojo() {
@@ -41,8 +64,8 @@ class TestMojoTest {
             @Override
             protected int exec(String cmd, List<String> args, Map<String, String> env) {
                 int exitCode = commands.exec(cmd, args, env);
-                // Like the real `uv sync`, which creates the environment the pinned pytest is installed into.
-                if (exitCode == 0 && args.equals(List.of("sync", "--locked"))) {
+                // Like the real `uv sync`, which creates the environment pytest and the wheel are installed into.
+                if (exitCode == 0 && args.get(0).equals("sync")) {
                     try {
                         Files.createDirectories(venv());
                     } catch (IOException e) {
@@ -53,23 +76,27 @@ class TestMojoTest {
             }
         }, project, "1.2.0-SNAPSHOT");
         set(mojo, "pytestVersion", "9.2.0");
+        set(mojo, "testWheel", true);
         return mojo;
     }
 
+    // The locked dependencies without the project, then the built wheel in its place, so the tests run against
+    // what is packaged.
     @Test
-    void runsThePluginsPinnedPytestInTheProjectsEnvironmentWithACacheUnderTargetAndAJUnitReport()
-            throws Exception {
-        mojo().execute();
+    void testsTheBuiltWheelWithThePluginsPinnedPytestACacheUnderTargetAndAJUnitReport() throws Exception {
+        TestMojo mojo = mojo();
 
-        Path work = project.resolve("target/python-maven-plugin");
+        mojo.execute();
+
         assertEquals(List.of(
-                List.of("uv", "sync", "--locked"),
+                List.of("uv", "sync", "--locked", "--no-install-project"),
                 List.of("uv", "pip", "install", "--python", venv().toString(), "pytest==9.2.0"),
-                List.of(BaseMojo.venvExecutable(venv(), "pytest").toString(),
-                        "-o", "cache_dir=" + work.resolve("pytest-cache"),
-                        "--ignore=" + project.resolve("target"),
-                        "--junitxml=" + project.resolve("target/surefire-reports/TEST-pytest.xml"))),
+                List.of("uv", "pip", "install", "--python", venv().toString(), "--no-deps", "--reinstall",
+                        wheel.toString()),
+                pytestCommand()),
                 commands.commands);
+        assertTrue(log(mojo).info.contains("Testing the built wheel: example-1.2.0.dev1-py3-none-any.whl"),
+                () -> "info: " + log(mojo).info);
         for (Map<String, String> env : commands.environments) {
             // The version variables apply to every package a backend builds, including dependencies built from
             // source during `uv sync`, so only `uv build` gets them.
@@ -77,6 +104,53 @@ class TestMojoTest {
             assertFalse(env.containsKey("PDM_BUILD_SCM_VERSION"), env.toString());
             assertEquals(venv().toString(), env.get("UV_PROJECT_ENVIRONMENT"));
         }
+    }
+
+    @Test
+    void testsTheSourceTreeAsAnEditableInstallWhenAsked() throws Exception {
+        TestMojo mojo = mojo();
+        set(mojo, "testWheel", false);
+
+        mojo.execute();
+
+        assertEquals(List.of(
+                List.of("uv", "sync", "--locked"),
+                List.of("uv", "pip", "install", "--python", venv().toString(), "pytest==9.2.0"),
+                pytestCommand()),
+                commands.commands);
+        assertTrue(log(mojo).info.contains("Testing the source tree."), () -> "info: " + log(mojo).info);
+    }
+
+    @Test
+    void failsBeforeRunningAnythingWhenThereIsNoWheelToTest() throws Exception {
+        Files.delete(wheel);
+
+        MojoExecutionException e = assertThrows(MojoExecutionException.class, () -> mojo().execute());
+
+        assertTrue(e.getMessage().startsWith("Expected exactly one wheel in "
+                + project.resolve("target/python-build") + " to test, found 0."), e.getMessage());
+        assertTrue(e.getMessage().contains("-Dpython.test.wheel=false"), e.getMessage());
+        assertTrue(commands.commands.isEmpty());
+    }
+
+    @Test
+    void failsWhenItCantTellWhichOfSeveralWheelsToTest() throws Exception {
+        Files.writeString(wheel.resolveSibling("example-1.2.0.dev1-cp312-cp312-linux_x86_64.whl"), "wheel");
+
+        MojoExecutionException e = assertThrows(MojoExecutionException.class, () -> mojo().execute());
+
+        assertTrue(e.getMessage().contains("found 2."), e.getMessage());
+        assertTrue(commands.commands.isEmpty());
+    }
+
+    @Test
+    void pytestVersionChoosesTheVersionInstalled() throws Exception {
+        TestMojo mojo = mojo();
+        set(mojo, "pytestVersion", "8.4.0");
+
+        mojo.execute();
+
+        assertEquals("pytest==8.4.0", commands.commands.get(1).get(5));
     }
 
     // A parent POM's pytest settings are -o overrides, applied over the project's own configuration, in a stable
@@ -92,11 +166,8 @@ class TestMojoTest {
 
         mojo.execute();
 
-        List<String> command = commands.commands.get(2);
-        assertEquals(List.of("-o", "addopts=--strict-markers -p no:randomly", "-o", "cache_dir=/elsewhere",
-                "-o", "xfail_strict=true",
-                "-o", "cache_dir=" + project.resolve("target/python-maven-plugin/pytest-cache")),
-                command.subList(1, 9));
+        assertEquals(pytestCommand("-o", "addopts=--strict-markers -p no:randomly", "-o", "cache_dir=/elsewhere",
+                "-o", "xfail_strict=true"), commands.commands.get(3));
     }
 
     // `-o addopts=` clears an option, so an entry without a value is passed on as empty.
@@ -109,17 +180,7 @@ class TestMojoTest {
 
         mojo.execute();
 
-        assertEquals(List.of("-o", "addopts="), commands.commands.get(2).subList(1, 3));
-    }
-
-    @Test
-    void pytestVersionChoosesTheVersionInstalled() throws Exception {
-        TestMojo mojo = mojo();
-        set(mojo, "pytestVersion", "8.4.0");
-
-        mojo.execute();
-
-        assertEquals("pytest==8.4.0", commands.commands.get(1).get(5));
+        assertEquals(pytestCommand("-o", "addopts="), commands.commands.get(3));
     }
 
     @ParameterizedTest
@@ -136,17 +197,17 @@ class TestMojoTest {
 
     @Test
     void passesWhenPytestCollectsNoTests() throws Exception {
-        commands.exitingWith(0, 0, 5);
+        commands.exitingWith(0, 0, 0, 5);
         TestMojo mojo = mojo();
 
         mojo.execute();
 
-        assertEquals(List.of("No tests to run."), log(mojo).info);
+        assertTrue(log(mojo).info.contains("No tests to run."), () -> "info: " + log(mojo).info);
     }
 
     @Test
     void failsTheBuildWhenTestsFail() {
-        commands.exitingWith(0, 0, 1);
+        commands.exitingWith(0, 0, 0, 1);
 
         MojoFailureException e = assertThrows(MojoFailureException.class, () -> mojo().execute());
 
@@ -155,7 +216,7 @@ class TestMojoTest {
 
     @Test
     void reportsABuildErrorWhenPytestCantRun() {
-        commands.exitingWith(0, 0, 2);
+        commands.exitingWith(0, 0, 0, 2);
 
         MojoExecutionException e = assertThrows(MojoExecutionException.class, () -> mojo().execute());
 
@@ -182,5 +243,15 @@ class TestMojoTest {
 
         assertEquals("`uv pip` failed with exit code 1. See the output above.", e.getMessage());
         assertEquals(2, commands.commands.size());
+    }
+
+    @Test
+    void reportsABuildErrorWithoutTestingWhenTheWheelCantBeInstalled() {
+        commands.exitingWith(0, 0, 1);
+
+        MojoExecutionException e = assertThrows(MojoExecutionException.class, () -> mojo().execute());
+
+        assertEquals("`uv pip` failed with exit code 1. See the output above.", e.getMessage());
+        assertEquals(3, commands.commands.size());
     }
 }

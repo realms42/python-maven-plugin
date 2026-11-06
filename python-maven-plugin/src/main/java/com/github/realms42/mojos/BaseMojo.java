@@ -6,6 +6,7 @@ import java.nio.file.Path;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.HashMap;
@@ -89,8 +90,10 @@ public abstract class BaseMojo extends AbstractMojo {
 
     // Sets up the plugin's environment for the project. `--locked` fails on a missing or stale uv.lock instead
     // of writing it.
-    protected void uvSync() throws MojoExecutionException {
-        run("uv", Arrays.asList("sync", "--locked"), uvEnvironment());
+    protected void uvSync(String... options) throws MojoExecutionException {
+        List<String> args = new ArrayList<>(Arrays.asList("sync", "--locked"));
+        args.addAll(Arrays.asList(options));
+        run("uv", args, uvEnvironment());
     }
 
     // Installs the plugin's pinned version of a tool into one of its environments, replacing any other version
