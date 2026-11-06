@@ -57,8 +57,8 @@
                     <pytestVersion>9.2.0</pytestVersion>
 
                     <!-- Safeguard: if publishing ever fires, its target is PyPI's staging index, TestPyPI, never
-                         PyPI itself. The plugin refuses public indexes, TestPyPI included, so even this fails
-                         before anything is uploaded. Point these at a private index to publish for real. -->
+                         PyPI itself. Credentials come from a settings.xml <server> with the id "testpypi". Files on
+                         TestPyPI are public: point these at your own index to publish for real. -->
                     <releaseRepository>
                         <id>testpypi</id>
                         <url>https://test.pypi.org/legacy/</url>

@@ -214,10 +214,9 @@ extend-select = ["N"]
 
 ## Publishing
 
-The optional `publish` goal uploads the built distributions with `uv publish`, to **private** package indexes only:
+The optional `publish` goal uploads the built distributions with `uv publish`, to the package index the
+configuration names:
 
-- **Public PyPI and TestPyPI are always refused** (`pypi.org`, `test.pypi.org`, `upload.pypi.org`, `pythonhosted.org`),
-  whatever the configuration says, before uv runs.
 - **There is no default repository.** Releases and snapshots each need a configured URL, so nothing is uploaded
   anywhere unless a POM or `-D` says where.
 - **It isn't bound to the lifecycle**, so `mvn deploy` doesn't run it unless a POM adds an execution.
@@ -271,10 +270,11 @@ publishing). Snapshot versions are timestamped and feature branch versions carry
 `mvn deploy` still runs Maven's own deploy plugin, as for any Maven project: it uploads the sdist and wheel as Maven
 artifacts to the POM's `<distributionManagement>` repository, and fails if there is none.
 
-**Safeguard in the example:** `example_parent/` points both repositories at PyPI's staging index, TestPyPI, and
-binds `publish` to `deploy`, so the only place an accidental `mvn deploy` could send a package is staging. The
-plugin refuses public indexes, TestPyPI included, so even that fails before anything is uploaded. A real setup
-points them at a private index.
+**Safeguard in the example:** `example_parent/` points both repositories at PyPI's staging index, TestPyPI, so
+the only place a publish from it can go is staging, never PyPI itself. It binds `publish` to `deploy`, but Maven's
+own deploy step runs first in that phase and fails, as there is no `<distributionManagement>`, so `mvn deploy`
+stops before publishing; `mvn python:publish` publishes to TestPyPI, with credentials for the `testpypi` server.
+Files on TestPyPI are public, so a real setup points the repositories at its own index.
 
 ## Configuring many projects from a parent POM
 
