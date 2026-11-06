@@ -156,6 +156,12 @@ below it, and changing a policy never needs a new plugin release. Put the config
             <target-version>"py311"</target-version>
             <format.quote-style>"double"</format.quote-style>
           </ruffSettings>
+          <!-- Any pytest option, for test. Keys are pytest's configuration options, as in
+               [tool.pytest.ini_options]; values are plain text, as pytest reads them. -->
+          <pytestSettings>
+            <xfail_strict>true</xfail_strict>
+            <addopts>--strict-markers</addopts>
+          </pytestSettings>
           <!-- The tool versions the plugin runs. -->
           <ruffVersion>0.17.3</ruffVersion>
           <pytestVersion>9.2.0</pytestVersion>
@@ -170,16 +176,21 @@ below it, and changing a policy never needs a new plugin release. Put the config
 |---|---|---|
 | `enforcedRules` | `lint` | `E, W, F, I, B, UP` |
 | `ruffSettings` | `lint`, `format` | none |
+| `pytestSettings` | `test` | none |
 | `ruffVersion` | `lint`, `format` | 0.17.3 |
 | `pytestVersion` | `test` | 9.2.0 |
 
-- **`ruffSettings` override the project's own value** for each setting they name, because ruff applies them as
-  `--config` overrides on top of the project's configuration. Every setting they don't name stays the project's,
-  and running ruff outside Maven uses the project's configuration alone.
-- **A child POM can override single entries.** Maven merges a child's `<ruffSettings>` with its parent's entry by
-  entry, so a child that sets only `<line-length>120</line-length>` keeps the parent's other settings. To replace
-  the parent's whole map, use `<ruffSettings combine.self="override">`.
-- **A malformed value fails the build** with ruff's own error, as a build error rather than as lint violations.
+- **`ruffSettings` and `pytestSettings` override the project's own value** for each option they name: ruff gets
+  them as `--config "key = value"` overrides, pytest as `-o key=value` overrides, both on top of the project's
+  configuration. Every option they don't name stays the project's, and running ruff or pytest outside Maven uses
+  the project's configuration alone. A pytest `addopts` entry replaces the project's `addopts`.
+- **A child POM can override single entries.** Maven merges a child's `<ruffSettings>` or `<pytestSettings>` with
+  its parent's entry by entry, so a child that sets only `<line-length>120</line-length>` keeps the parent's other
+  settings. To replace the parent's whole map, use `<ruffSettings combine.self="override">`.
+- **A malformed value fails the build** with the tool's own error, as a build error rather than as lint violations
+  or test failures. pytest only warns about an option it doesn't know.
+- **The plugin's own pytest options win:** its cache and JUnit report stay under `target/` whatever the settings
+  say.
 
 ## Developing the plugin
 

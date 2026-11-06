@@ -12,6 +12,7 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -76,6 +77,39 @@ class TestMojoTest {
             assertFalse(env.containsKey("PDM_BUILD_SCM_VERSION"), env.toString());
             assertEquals(venv().toString(), env.get("UV_PROJECT_ENVIRONMENT"));
         }
+    }
+
+    // A parent POM's pytest settings are -o overrides, applied over the project's own configuration, in a stable
+    // order. The plugin's own options come last, so the settings can't move the cache or the report.
+    @Test
+    void appliesThePytestSettingsBeforeThePluginsOwnOptions() throws Exception {
+        TestMojo mojo = mojo();
+        Map<String, String> settings = new HashMap<>();
+        settings.put("xfail_strict", " true ");
+        settings.put("addopts", "--strict-markers -p no:randomly");
+        settings.put("cache_dir", "/elsewhere");
+        set(mojo, "pytestSettings", settings);
+
+        mojo.execute();
+
+        List<String> command = commands.commands.get(2);
+        assertEquals(List.of("-o", "addopts=--strict-markers -p no:randomly", "-o", "cache_dir=/elsewhere",
+                "-o", "xfail_strict=true",
+                "-o", "cache_dir=" + project.resolve("target/python-maven-plugin/pytest-cache")),
+                command.subList(1, 9));
+    }
+
+    // `-o addopts=` clears an option, so an entry without a value is passed on as empty.
+    @Test
+    void passesAnEmptySettingOnAsAnEmptyValue() throws Exception {
+        TestMojo mojo = mojo();
+        Map<String, String> settings = new HashMap<>();
+        settings.put("addopts", null);
+        set(mojo, "pytestSettings", settings);
+
+        mojo.execute();
+
+        assertEquals(List.of("-o", "addopts="), commands.commands.get(2).subList(1, 3));
     }
 
     @Test

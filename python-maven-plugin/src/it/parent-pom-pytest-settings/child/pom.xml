@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0">
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>it</groupId>
+    <artifactId>parent-pom-pytest-settings</artifactId>
+    <version>1</version>
+  </parent>
+  <groupId>it</groupId>
+  <artifactId>child</artifactId>
+  <version>1.0.0-SNAPSHOT</version>
+  <packaging>python</packaging>
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>@project.groupId@</groupId>
+        <artifactId>@project.artifactId@</artifactId>
+        <version>@project.version@</version>
+        <extensions>true</extensions>
+        <configuration>
+          <pytestSettings>
+            <console_output_style>count</console_output_style>
+          </pytestSettings>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+</project>
