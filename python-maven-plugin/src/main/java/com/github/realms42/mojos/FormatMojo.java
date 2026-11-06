@@ -8,11 +8,7 @@ import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
 
-/**
- * Checks the project's formatting with {@code ruff format --check}, using the project's own ruff configuration
- * plus the {@code ruffSettings}. Runs the plugin's pinned ruff ({@code ruffVersion}), not the project's. Never
- * rewrites a file: it reports what isn't formatted and fails the build.
- */
+/** Checks the formatting with {@code ruff format --check}, without rewriting anything. */
 @Mojo(name = "format", defaultPhase = LifecyclePhase.VERIFY, threadSafe = true)
 public class FormatMojo extends RuffMojo {
 

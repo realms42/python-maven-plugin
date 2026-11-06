@@ -210,8 +210,6 @@ class PublishMojoTest {
         assertEquals(List.of("Publishing skipped."), log(mojo).info);
     }
 
-    // The plugin publishes to whatever index the configuration names, a staging index such as TestPyPI included:
-    // choosing the target, and a safe one, is the configuration's job.
     @Test
     void publishesToTheConfiguredIndexWhateverItIs() throws Exception {
         PublishMojo mojo = mojo("1.0.0");

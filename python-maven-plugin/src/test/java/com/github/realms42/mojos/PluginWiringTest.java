@@ -21,8 +21,6 @@ import org.junit.jupiter.params.provider.ValueSource;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 
-// The unit tests set parameters directly, so this checks the Maven-facing side: the generated
-// plugin descriptor (phases, user properties) and the lifecycle for <packaging>python</packaging>.
 class PluginWiringTest {
 
     private static final String PLUGIN = "com.github.realms42:python-maven-plugin:";
@@ -47,15 +45,12 @@ class PluginWiringTest {
                 bindings);
     }
 
-    // Maven warns about goals not marked thread-safe in parallel builds (-T). Each goal works in its own project's
-    // directory and target/, and uv locks its shared cache itself.
     @ParameterizedTest
     @ValueSource(strings = {"build", "test", "package", "lint", "format", "publish"})
     void goalIsThreadSafe(String goal) throws Exception {
         assertEquals("true", child(mojo(goal), "threadSafe").getTextContent());
     }
 
-    // `mvn help:describe` and the plugin's documentation come from Javadoc on the goal and its parameters.
     @ParameterizedTest
     @ValueSource(strings = {"build", "test", "package", "lint", "format", "publish"})
     void goalAndEveryParameterAUserCanSetAreDocumented(String goal) throws Exception {
@@ -82,8 +77,6 @@ class PluginWiringTest {
         assertEquals(phase, child(mojo(goal), "phase").getTextContent());
     }
 
-    // A parent POM configures ruff once, at plugin level, for both goals that run it. The other goals don't
-    // take the ruff parameters, so `help:describe` doesn't show them there.
     @ParameterizedTest
     @CsvSource({
             "lint, true", "format, true",
@@ -97,7 +90,6 @@ class PluginWiringTest {
         }
     }
 
-    // Builds use the plugin's own tool versions unless a POM or -D changes them, so they can't drift.
     @ParameterizedTest
     @CsvSource({
             "lint, ruffVersion, " + BaseMojo.RUFF_VERSION,
@@ -108,8 +100,6 @@ class PluginWiringTest {
         assertEquals(version, child(child(mojo(goal), "configuration"), parameter).getAttribute("default-value"));
     }
 
-    // Maven injects an empty list over a field initializer when the property is unset, so the default has to
-    // be on the annotation for the base rules to be enforced when a project configures nothing.
     @Test
     void lintEnforcesTheBaseRulesByDefault() throws Exception {
         Element enforcedRules = child(child(mojo("lint"), "configuration"), "enforcedRules");

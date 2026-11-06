@@ -21,11 +21,7 @@ import org.apache.maven.settings.crypto.DefaultSettingsDecryptionRequest;
 import org.apache.maven.settings.crypto.SettingsDecrypter;
 import org.apache.maven.settings.crypto.SettingsDecryptionResult;
 
-/**
- * Uploads the built distributions to a Python package index with {@code uv publish}. Releases and snapshots go to
- * separate repositories. There is no default, so nothing is uploaded anywhere a POM or property doesn't name. Every
- * file is validated with a dry run before anything is uploaded. Not bound to the lifecycle by default.
- */
+/** Uploads the built distributions to a Python package index with {@code uv publish}. */
 @Mojo(name = "publish", defaultPhase = LifecyclePhase.DEPLOY, threadSafe = true)
 public class PublishMojo extends BaseMojo {
 
@@ -38,27 +34,15 @@ public class PublishMojo extends BaseMojo {
     @Component
     private SettingsDecrypter settingsDecrypter;
 
-    /**
-     * The package index that release versions are published to, with an {@code id} naming the
-     * {@code settings.xml} {@code <server>} that holds its credentials, and a {@code url}. Each value falls back to
-     * the {@code python.publish.releaseRepository.id} and {@code .url} properties. Without an id, uv finds
-     * credentials itself ({@code UV_PUBLISH_*}, or trusted publishing).
-     */
+    /** The index for release versions: a {@code url}, and an {@code id} naming a settings.xml server. */
     @Parameter
     private PublishRepository releaseRepository;
 
-    /**
-     * The package index that {@code -SNAPSHOT} versions are published to, configured like
-     * {@code releaseRepository}. Each value falls back to the {@code python.publish.snapshotRepository.id} and
-     * {@code .url} properties.
-     */
+    /** The index for -SNAPSHOT versions, configured like {@code releaseRepository}. */
     @Parameter
     private PublishRepository snapshotRepository;
 
-    // The same repositories as properties, so a parent POM, a settings.xml profile or -D can set them.
-    // A <releaseRepository> or <snapshotRepository> block wins value by value. These read the properties
-    // as default values rather than binding them with `property`, which would make Maven warn that a
-    // read-only parameter is configured whenever one is set.
+    // Read as default values, not with `property`, which would warn about configuring a read-only parameter.
     @Parameter(defaultValue = "${python.publish.releaseRepository.id}", readonly = true)
     private String releaseRepositoryId;
 

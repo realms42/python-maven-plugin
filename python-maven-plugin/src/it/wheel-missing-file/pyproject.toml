@@ -12,6 +12,5 @@ build-backend = "hatchling.build"
 source = "vcs"
 fallback-version = "0.0.0"
 
-# The wheel leaves out a data file the code needs: testing the wheel must catch it.
 [tool.hatch.build.targets.wheel]
 exclude = ["src/it_pkg/greeting.txt"]

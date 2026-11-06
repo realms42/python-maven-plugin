@@ -64,7 +64,6 @@ class TestMojoTest {
             @Override
             protected int exec(String cmd, List<String> args, Map<String, String> env) {
                 int exitCode = commands.exec(cmd, args, env);
-                // Like the real `uv sync`, which creates the environment pytest and the wheel are installed into.
                 if (exitCode == 0 && args.get(0).equals("sync")) {
                     try {
                         Files.createDirectories(venv());
@@ -80,8 +79,6 @@ class TestMojoTest {
         return mojo;
     }
 
-    // The locked dependencies without the project, then the built wheel in its place, so the tests run against
-    // what is packaged.
     @Test
     void testsTheBuiltWheelWithThePluginsPinnedPytestACacheUnderTargetAndAJUnitReport() throws Exception {
         TestMojo mojo = mojo();
@@ -98,8 +95,6 @@ class TestMojoTest {
         assertTrue(log(mojo).info.contains("Testing the built wheel: example-1.2.0.dev1-py3-none-any.whl"),
                 () -> "info: " + log(mojo).info);
         for (Map<String, String> env : commands.environments) {
-            // The version variables apply to every package a backend builds, including dependencies built from
-            // source during `uv sync`, so only `uv build` gets them.
             assertFalse(env.containsKey("SETUPTOOLS_SCM_PRETEND_VERSION"), env.toString());
             assertFalse(env.containsKey("PDM_BUILD_SCM_VERSION"), env.toString());
             assertEquals(venv().toString(), env.get("UV_PROJECT_ENVIRONMENT"));
@@ -153,8 +148,6 @@ class TestMojoTest {
         assertEquals("pytest==8.4.0", commands.commands.get(1).get(5));
     }
 
-    // A parent POM's pytest settings are -o overrides, applied over the project's own configuration, in a stable
-    // order. The plugin's own options come last, so the settings can't move the cache or the report.
     @Test
     void appliesThePytestSettingsBeforeThePluginsOwnOptions() throws Exception {
         TestMojo mojo = mojo();
@@ -170,7 +163,6 @@ class TestMojoTest {
                 "-o", "xfail_strict=true"), commands.commands.get(3));
     }
 
-    // `-o addopts=` clears an option, so an entry without a value is passed on as empty.
     @Test
     void passesAnEmptySettingOnAsAnEmptyValue() throws Exception {
         TestMojo mojo = mojo();
@@ -223,8 +215,6 @@ class TestMojoTest {
         assertEquals("`pytest` failed with exit code 2. See the output above.", e.getMessage());
     }
 
-    // uv also exits with 1, for example when the project fails to build, so the environment is set up in its own
-    // steps and a failure there is never reported as test failures.
     @Test
     void reportsABuildErrorWithoutTestingWhenUvCantSetUpTheProject() {
         commands.exitingWith(1);

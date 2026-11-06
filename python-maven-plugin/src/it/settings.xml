@@ -1,6 +1,4 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- The integration tests run with their own local repository, which holds this build of the plugin
-     (@localRepositoryUrl@ is filled in by the invoker); everything else comes from Maven Central. -->
 <settings>
   <profiles>
     <profile>

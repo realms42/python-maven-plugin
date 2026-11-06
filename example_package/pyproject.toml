@@ -8,15 +8,12 @@ dynamic = ["version"]
 requires = ["hatchling", "hatch-vcs"]
 build-backend = "hatchling.build"
 
-# The version comes from git tags, falling back to 0.0.0 outside a git checkout, so the project builds without
-# Maven too. Under Maven, the plugin overrides it with the Maven version through SETUPTOOLS_SCM_PRETEND_VERSION.
 [tool.hatch.version]
 source = "vcs"
 fallback-version = "0.0.0"
-# This example lives in a subdirectory of its git repository.
+# Only needed because this example is in a subdirectory of its git repository.
 raw-options = { search_parent_directories = true }
 
-# The version depends on git, so uv must rebuild the project when the commit or tags change.
 [tool.uv]
 cache-keys = [{ file = "pyproject.toml" }, { git = { commit = true, tags = true } }]
 

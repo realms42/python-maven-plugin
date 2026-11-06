@@ -40,11 +40,7 @@
     <url>https://github.com/realms42/python-maven-plugin/issues</url>
   </issueManagement>
 
-  <!-- No <distributionManagement>: a plain `mvn deploy` has nowhere to upload and fails. Releases go to Maven
-       Central's staging through the release profile below, and are only published by hand. See "Releasing". -->
-
   <properties>
-    <!-- release, not source/target: it also rejects newer JDK APIs, so a build on a newer JDK fails like CI's JDK 11. -->
     <maven.compiler.release>11</maven.compiler.release>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
@@ -85,7 +81,6 @@
       <scope>test</scope>
     </dependency>
 
-    <!-- Matches the slf4j-api 1.7.x that maven-core brings, so Maven's classes stop warning about a missing binding in tests. -->
     <dependency>
       <groupId>org.slf4j</groupId>
       <artifactId>slf4j-nop</artifactId>
@@ -93,7 +88,6 @@
       <scope>test</scope>
     </dependency>
   </dependencies>
-
 
   <build>
     <plugins>
@@ -115,9 +109,6 @@
         <artifactId>maven-surefire-plugin</artifactId>
         <version>3.5.4</version>
       </plugin>
-      <!-- Releases: `mvn release:prepare` sets the release version, builds and tests it, commits and tags it
-           v<version> locally, then sets the next -SNAPSHOT; nothing is pushed until you push the commits and tag.
-           `release:perform` builds the tag with the release profile and deploys it to <distributionManagement>. -->
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-release-plugin</artifactId>
@@ -130,9 +121,6 @@
           <scmCommentPrefix>[release] </scmCommentPrefix>
         </configuration>
       </plugin>
-      <!-- Integration tests: each directory under src/it is a Python project built by real Maven, uv, ruff and
-           pytest with this plugin, then checked by its verify.groovy. They run in `mvn verify` and later phases;
-           -Dinvoker.skip skips them, and -Dinvoker.test=lint-* runs some. -->
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-invoker-plugin</artifactId>
@@ -167,18 +155,14 @@
   </build>
 
   <profiles>
-    <!-- Used by release:perform. Builds the source and Javadoc jars that Maven Central requires alongside the
-         plugin, and deploys to Central's staging only: try the build with `mvn -P release verify`. -->
+    <!-- Used by release:perform: see "Releasing the plugin" in the README. -->
     <profile>
       <id>release</id>
       <properties>
-        <!-- central-publishing-maven-plugin below does the upload instead of Maven's deploy plugin. -->
         <maven.deploy.skip>true</maven.deploy.skip>
       </properties>
       <build>
         <plugins>
-          <!-- Safeguard: only release versions are deployed. Central publishes -SNAPSHOT versions to its snapshot
-               repository straight away, without staging, so a snapshot fails here, before the upload below. -->
           <plugin>
             <groupId>org.apache.maven.plugins</groupId>
             <artifactId>maven-enforcer-plugin</artifactId>
@@ -200,9 +184,6 @@
               </execution>
             </executions>
           </plugin>
-          <!-- Safeguard: uploads to Maven Central's staging (the Central Portal) and stops there. With autoPublish
-               off, nothing is published until someone presses Publish for the deployment on central.sonatype.com.
-               Credentials: a settings.xml <server> with the id "central" holding a Central Portal token. -->
           <plugin>
             <groupId>org.sonatype.central</groupId>
             <artifactId>central-publishing-maven-plugin</artifactId>
@@ -239,7 +220,6 @@
             <artifactId>maven-javadoc-plugin</artifactId>
             <version>3.12.0</version>
             <configuration>
-              <!-- Every goal and parameter users see is documented; this skips warnings for internal members. -->
               <doclint>all,-missing</doclint>
             </configuration>
             <executions>

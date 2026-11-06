@@ -29,7 +29,5 @@ jobs:
           version: 3.x
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
-      # One `task` command, so the plugin is built, unit tested and integration tested once, then the example is
-      # built with it. Separate `task build` and `task example` steps would build the plugin twice.
       - name: Build and test the plugin, then build the example package
         run: task all

@@ -1,9 +1,4 @@
 # https://taskfile.dev
-#
-# Common tasks for the python-maven-plugin repo.
-#   - PLUGIN_DIR  : the Maven plugin itself (Java)
-#   - PARENT_DIR  : an example parent POM holding the plugin's configuration; it also aggregates the example
-#   - EXAMPLE_DIR : an example Python package that consumes the plugin through that parent
 
 version: '3'
 
@@ -24,7 +19,6 @@ tasks:
   build:
     desc: Build, test (unit and integration) and install the plugin into the local Maven repo
     dir: '{{.PLUGIN_DIR}}'
-    # Once per `task` command, however many tasks depend on it, so `task all` builds the plugin only once.
     run: once
     cmds:
       - '{{.MVN}} install'

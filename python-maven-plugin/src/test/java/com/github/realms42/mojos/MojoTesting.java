@@ -19,7 +19,6 @@ final class MojoTesting {
     private MojoTesting() {
     }
 
-    // The start time every test build gets, and the snapshot timestamp it gives (UTC).
     static final Instant BUILD_START = Instant.parse("2026-11-05T15:23:00Z");
     static final String BUILD_TIMESTAMP = "20261105152300";
 
@@ -32,7 +31,6 @@ final class MojoTesting {
         return mojo;
     }
 
-    // Maven injects @Parameter fields reflectively, so tests set the private ones the same way.
     static void set(Object target, String name, Object value) {
         for (Class<?> type = target.getClass(); type != null; type = type.getSuperclass()) {
             try {
@@ -41,7 +39,6 @@ final class MojoTesting {
                 field.set(target, value);
                 return;
             } catch (NoSuchFieldException e) {
-                // declared further up the hierarchy
             } catch (IllegalAccessException e) {
                 throw new IllegalStateException(e);
             }
@@ -53,7 +50,6 @@ final class MojoTesting {
         return (RecordingLog) mojo.getLog();
     }
 
-    // Stands in for the processes a mojo starts: records each command and answers with a scripted exit code.
     static final class Commands {
         final List<List<String>> commands = new ArrayList<>();
         final List<Map<String, String>> environments = new ArrayList<>();
@@ -74,7 +70,6 @@ final class MojoTesting {
         }
     }
 
-    // Thread-safe, since a real process's stdout and stderr are logged from two threads.
     static final class RecordingLog extends SystemStreamLog {
         final List<String> debug = new CopyOnWriteArrayList<>();
         final List<String> info = new CopyOnWriteArrayList<>();

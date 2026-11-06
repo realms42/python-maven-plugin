@@ -1,7 +1,5 @@
 package com.github.realms42.mojos;
 
-// A Python package index to upload to, configured like a <distributionManagement> repository:
-// the id names the settings.xml <server> that holds its credentials.
 public class PublishRepository {
 
     private String id;
