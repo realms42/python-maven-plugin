@@ -14,9 +14,12 @@ WORKDIR /plugin
 COPY python-maven-plugin/pom.xml .
 RUN mvn dependency:go-offline -B
 COPY python-maven-plugin .
-RUN mvn install -B
+# The image only builds: tests, integration tests and checks run in CI, not here.
+RUN mvn install -B -Dmaven.test.skip=true -Dinvoker.skip
 
 WORKDIR /example
 COPY example_package .
 # No cache mount on /root/.m2: it would start empty and hide the plugin installed there above.
-RUN --mount=type=cache,target=/root/.cache/uv mvn install -B
+# Builds and packages the example without its tests, lint or format check.
+RUN --mount=type=cache,target=/root/.cache/uv \
+    mvn install -B -Dmaven.test.skip=true -Dpython.lint.skip -Dpython.format.skip
