@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- An example parent POM: the plugin and its configuration, shared by every Python project below it. -->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>com.github.realms42</groupId>
+    <artifactId>example-parent</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+    <packaging>pom</packaging>
+
+    <name>Example Python Parent</name>
+    <description>Example parent POM: the shared python-maven-plugin configuration for Python projects</description>
+
+    <modules>
+        <module>../example_package</module>
+    </modules>
+
+    <properties>
+        <python-maven-plugin.version>1.0.0-SNAPSHOT</python-maven-plugin.version>
+    </properties>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>com.github.realms42</groupId>
+                <artifactId>python-maven-plugin</artifactId>
+                <version>${python-maven-plugin.version}</version>
+                <extensions>true</extensions>
+                <configuration>
+                    <enforcedRules>
+                        <rule>E</rule>
+                        <rule>W</rule>
+                        <rule>F</rule>
+                        <rule>I</rule>
+                        <rule>B</rule>
+                        <rule>UP</rule>
+                    </enforcedRules>
+                    <ruffSettings>
+                        <line-length>100</line-length>
+                    </ruffSettings>
+                    <pytestSettings>
+                        <xfail_strict>true</xfail_strict>
+                    </pytestSettings>
+                    <ruffVersion>0.17.3</ruffVersion>
+                    <pytestVersion>9.2.0</pytestVersion>
+
+                    <!-- PyPI's staging index, as a safeguard: see "Publishing" in the README. -->
+                    <releaseRepository>
+                        <id>testpypi</id>
+                        <url>https://test.pypi.org/legacy/</url>
+                    </releaseRepository>
+                    <snapshotRepository>
+                        <id>testpypi</id>
+                        <url>https://test.pypi.org/legacy/</url>
+                    </snapshotRepository>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>publish</id>
+                        <goals>
+                            <goal>publish</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>

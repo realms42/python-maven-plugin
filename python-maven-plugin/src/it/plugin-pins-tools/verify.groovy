@@ -1,7 +1,6 @@
 def log = new File(basedir, "build.log").text
 def contains = { String s -> assert log.contains(s), "build.log does not contain: " + s }
 
-// The project pins ruff 0.5.0 and pytest 8.3.0 for its own use; under Maven the plugin runs its own versions.
 contains("BUILD SUCCESS")
 assert !log.contains("pytest-8.3.0"), "ran the project's pytest pin"
 assert log =~ /pytest-\d+\.\d+\.\d+/

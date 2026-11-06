@@ -10,12 +10,7 @@ import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
 
-/**
- * Lints the project with {@code ruff check}, using the project's own ruff configuration plus the
- * {@code enforcedRules} and {@code ruffSettings}. Runs the plugin's pinned ruff ({@code ruffVersion}), not the
- * project's.
- * Never fixes anything: it reports violations and fails the build.
- */
+/** Lints the project with {@code ruff check}, without fixing anything. */
 @Mojo(name = "lint", defaultPhase = LifecyclePhase.VERIFY, threadSafe = true)
 public class LintMojo extends RuffMojo {
 
@@ -23,17 +18,8 @@ public class LintMojo extends RuffMojo {
     @Parameter(property = "python.lint.skip", defaultValue = "false")
     private boolean skip;
 
-    /**
-     * The base ruleset every project is linted with, as ruff rule selectors such as {@code E} or {@code B006}.
-     * Projects add to it with their own ruff configuration ({@code extend-select} in {@code pyproject.toml} or
-     * {@code ruff.toml}), which ruff also reads when run outside Maven. A project's {@code select} and
-     * {@code ignore} can't switch these rules off; {@code per-file-ignores} and {@code # noqa} still work.
-     * Set it in a parent POM to apply one base to many projects, or leave it empty to lint with the project's
-     * own configuration alone.
-     */
-    // Passed as --extend-select, which ruff applies over a project's `select` and `ignore`. The default is
-    // declared on the annotation because Maven injects an empty list over a field initializer when the
-    // property is unset.
+    /** Rule selectors always checked, on top of the project's own rules. */
+    // The default must be on the annotation: Maven injects an empty list over a field initializer.
     @Parameter(property = "python.lint.enforcedRules", defaultValue = "E,W,F,I,B,UP")
     private List<String> enforcedRules;
 

@@ -58,15 +58,20 @@ class BaseMojoTest {
             "1.0.0-a1, 1.0.0a1",
             "1.0.0-RC1-SNAPSHOT, 1.0.0rc1.dev20261105152300",
             "1.0.0-snapshot, 1.0.0.dev20261105152300",
-            // gitflow-maven-plugin: hotfix and feature branch versions
             "1.0.2.1-SNAPSHOT, 1.0.2.1.dev20261105152300",
             "1.0.0-feature_name-SNAPSHOT, 1.0.0.dev20261105152300+feature.name",
             "1.0.0-feature/JIRA-42_Add-Login-SNAPSHOT, 1.0.0.dev20261105152300+feature.jira.42.add.login",
-            // git-branch-as-version, jgitver-style branch and distance qualifiers
             "2.1.4-TR-123-SNAPSHOT, 2.1.4.dev20261105152300+tr.123",
             "1.0.1-3-SNAPSHOT, 1.0.1.dev20261105152300+3",
             "1.0.0-my-feature, 1.0.0+my.feature",
-            // Branch names that start like a pre-release are still branch names.
+            // Produced by gitflow-maven-plugin 1.21.0 and jgitver 1.9.0 on feature branches.
+            "1.0.0-login-SNAPSHOT, 1.0.0.dev20261105152300+login",
+            "1.0.0-JIRA-42_Add-Login-SNAPSHOT, 1.0.0.dev20261105152300+jira.42.add.login",
+            "1.0.0-Release-Candidate-Fixes-SNAPSHOT, 1.0.0.dev20261105152300+release.candidate.fixes",
+            "1.0.0-user.profile_v2-SNAPSHOT, 1.0.0.dev20261105152300+user.profile.v2",
+            "1.0.1-feature_jira_42_add_login-SNAPSHOT, 1.0.1.dev20261105152300+feature.jira.42.add.login",
+            "1.0.1-bugfix_issue_7-SNAPSHOT, 1.0.1.dev20261105152300+bugfix.issue.7",
+            // Branch names, not pre-releases.
             "1.0.0-a-team-SNAPSHOT, 1.0.0.dev20261105152300+a.team",
             "1.0.0-rc-fixes-SNAPSHOT, 1.0.0.dev20261105152300+rc.fixes",
             "1.0.0-beta_feature, 1.0.0+beta.feature",
@@ -76,8 +81,6 @@ class BaseMojoTest {
         assertEquals(pep440, mojo(maven).versionToPep440());
     }
 
-    // A snapshot's dev number is the build's start time, so every snapshot build gets its own version: package
-    // indexes refuse a second upload of the same version. It is UTC, whatever the machine's time zone.
     @Test
     void snapshotsGetTheBuildsStartTimeInUtc() throws Exception {
         BaseMojo mojo = mojo("2.0.0-SNAPSHOT");
@@ -153,7 +156,6 @@ class BaseMojoTest {
         assertEquals(BaseMojo.venvExecutable(tools, "ruff"), ruff);
     }
 
-    // `uv pip install` replaces a version already there, so an existing environment is reused, not recreated.
     @Test
     void installToolReusesAnExistingEnvironment() throws Exception {
         Commands commands = new Commands();
@@ -178,8 +180,6 @@ class BaseMojoTest {
         }
     }
 
-    // ruff skips directories named .venv by default, so a project running its own ruff doesn't lint the plugin's
-    // environments even when target/ isn't in its .gitignore.
     @Test
     void thePluginsEnvironmentsAreNamedSoAProjectsOwnRuffSkipsThem() {
         BaseMojo mojo = mojo("1.0.0");

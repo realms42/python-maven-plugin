@@ -1,7 +1,14 @@
 package com.github.realms42.mojos;
 
+import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
+import java.util.stream.Stream;
 
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.MojoFailureException;
@@ -10,31 +17,32 @@ import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
 
 /**
- * Runs the project's tests with the plugin's pinned pytest ({@code pytestVersion}). The results are also written
- * as a JUnit XML report to {@code target/surefire-reports/TEST-pytest.xml}, where CI servers look for Maven test
- * results.
- * When pytest collects no tests, the goal passes, as Surefire does.
+ * Runs the tests with pytest against the built wheel, with a JUnit report in {@code target/surefire-reports/}.
  */
 @Mojo(name = "test", defaultPhase = LifecyclePhase.TEST, threadSafe = true)
 public class TestMojo extends BaseMojo {
 
     private static final int PYTEST_NO_TESTS_COLLECTED = 5;
 
-    /** Skips running the tests, like Surefire's {@code skipTests}. */
+    /** Skips the tests. */
     @Parameter(property = "skipTests", defaultValue = "false")
     private boolean skipTests;
 
-    /** Skips running the tests, like Surefire's {@code maven.test.skip}. */
+    /** Skips the tests. */
     @Parameter(property = "maven.test.skip", defaultValue = "false")
     private boolean skip;
 
-    /**
-     * The exact pytest version the plugin runs. It is installed into the plugin's environment for the project,
-     * under {@code target/}, over any version the project's lock pins; the project's own pytest is for running
-     * the tests itself, outside Maven. Test dependencies and pytest plugins still come from the project's lock.
-     */
+    /** The pytest version to run, whatever the project's lock pins. */
     @Parameter(property = "python.pytest.version", defaultValue = PYTEST_VERSION)
     private String pytestVersion;
+
+    /** Tests the built wheel; {@code false} tests the source tree instead. */
+    @Parameter(property = "python.test.wheel", defaultValue = "true")
+    private boolean testWheel;
+
+    /** pytest options, passed as {@code -o name=value}, overriding the project's own values. */
+    @Parameter
+    private Map<String, String> pytestSettings;
 
     @Override
     public void execute() throws MojoExecutionException, MojoFailureException {
@@ -42,17 +50,52 @@ public class TestMojo extends BaseMojo {
             getLog().info("Tests are skipped.");
             return;
         }
-        String cacheDir = "cache_dir=" + getPythonMavenPath().resolve("pytest-cache");
-        String ignoreBuildDir = "--ignore=" + buildDir.getAbsolutePath();
-        String report = "--junitxml=" + buildDir.toPath().resolve("surefire-reports").resolve("TEST-pytest.xml");
-        uvSync();
-        Path pytest = installTool(getProjectVenvPath(), "pytest", pytestVersion);
-        int exitCode = exec(pytest.toString(), Arrays.asList("-o", cacheDir, ignoreBuildDir, report),
-                uvEnvironment());
+        List<String> args = new ArrayList<>();
+        for (Map.Entry<String, String> setting
+                : new TreeMap<>(pytestSettings == null ? Map.of() : pytestSettings).entrySet()) {
+            String value = setting.getValue() == null ? "" : setting.getValue().trim();
+            args.add("-o");
+            args.add(setting.getKey().trim() + "=" + value);
+        }
+        args.addAll(Arrays.asList(
+                "-o", "cache_dir=" + getPythonMavenPath().resolve("pytest-cache"),
+                "--ignore=" + buildDir.getAbsolutePath(),
+                "--junitxml=" + buildDir.toPath().resolve("surefire-reports").resolve("TEST-pytest.xml")));
+        Path pytest;
+        if (testWheel) {
+            Path wheel = builtWheel();
+            uvSync("--no-install-project");
+            pytest = installTool(getProjectVenvPath(), "pytest", pytestVersion);
+            run("uv", Arrays.asList("pip", "install", "--python", getProjectVenvPath().toString(), "--no-deps",
+                    "--reinstall", wheel.toString()), uvEnvironment());
+            getLog().info("Testing the built wheel: " + wheel.getFileName());
+        } else {
+            uvSync();
+            pytest = installTool(getProjectVenvPath(), "pytest", pytestVersion);
+            getLog().info("Testing the source tree.");
+        }
+        int exitCode = exec(pytest.toString(), args, uvEnvironment());
         if (exitCode == PYTEST_NO_TESTS_COLLECTED) {
             getLog().info("No tests to run.");
             return;
         }
         checkExitCode("pytest", "There are test failures. See pytest's output above.", exitCode);
+    }
+
+    private Path builtWheel() throws MojoExecutionException {
+        List<Path> wheels = new ArrayList<>();
+        if (Files.isDirectory(getPythonBuildPath())) {
+            try (Stream<Path> files = Files.list(getPythonBuildPath())) {
+                files.filter(p -> p.getFileName().toString().endsWith(".whl")).sorted().forEach(wheels::add);
+            } catch (IOException e) {
+                throw new MojoExecutionException("Failed to list " + getPythonBuildPath(), e);
+            }
+        }
+        if (wheels.size() != 1) {
+            throw new MojoExecutionException("Expected exactly one wheel in " + getPythonBuildPath() + " to test,"
+                    + " found " + wheels.size() + ". Run the build goal first, or test the source tree with"
+                    + " -Dpython.test.wheel=false.");
+        }
+        return wheels.get(0);
     }
 }

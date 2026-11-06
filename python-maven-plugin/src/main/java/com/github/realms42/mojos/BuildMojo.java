@@ -13,14 +13,7 @@ import org.apache.maven.plugin.MojoFailureException;
 import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
 
-/**
- * Builds the project's sdist and wheel with {@code uv build} into {@code target/python-build/}, using the project's
- * own {@code pyproject.toml} and build backend. Distributions from earlier builds are removed first.
- *
- * <p>The distributions get the Maven version, in PEP 440 form, through the variables that version-from-SCM
- * backends already read: {@code SETUPTOOLS_SCM_PRETEND_VERSION} (hatch-vcs, setuptools-scm) and
- * {@code PDM_BUILD_SCM_VERSION} (pdm-backend). Outside Maven, the project's own versioning applies.
- */
+/** Builds the sdist and wheel with {@code uv build}, versioned from the Maven version. */
 @Mojo(name = "build", defaultPhase = LifecyclePhase.COMPILE, threadSafe = true)
 public class BuildMojo extends BaseMojo {
 
@@ -32,9 +25,7 @@ public class BuildMojo extends BaseMojo {
         run("uv", Arrays.asList("build", "--out-dir", getPythonBuildPath().toString()), buildEnvironment(pep440));
     }
 
-    // Only for `uv build`, which builds the project alone. These variables apply to every package a backend
-    // builds, so setting them for `uv sync` would also give the project's version to any dependency built from
-    // source there, such as a path or git dependency.
+    // Not for `uv sync`: backends apply these to every package they build, dependencies included.
     private Map<String, String> buildEnvironment(String pep440) {
         Map<String, String> env = uvEnvironment();
         env.put("SETUPTOOLS_SCM_PRETEND_VERSION", pep440);
@@ -42,8 +33,6 @@ public class BuildMojo extends BaseMojo {
         return env;
     }
 
-    // uv build only ever adds to its output directory, so without this a distribution left
-    // over from an earlier version would be packaged and published alongside the current one.
     private static void deleteRecursively(Path directory) throws MojoExecutionException {
         if (!Files.exists(directory)) {
             return;

@@ -59,7 +59,6 @@ class LintMojoTest {
                 commands.environments.get(2).get("RUFF_CACHE_DIR"));
     }
 
-    // The project's environment isn't needed to lint, so lint never syncs it.
     @Test
     void neverSetsUpTheProjectsEnvironment() throws Exception {
         mojo().execute();
@@ -79,8 +78,6 @@ class LintMojoTest {
         assertEquals("ruff==0.15.0", commands.commands.get(1).get(5));
     }
 
-    // A parent POM's ruff settings are --config overrides, applied over the project's own configuration. They are
-    // passed in a stable order, whatever order Maven's map has.
     @Test
     void appliesTheRuffSettingsOverTheProjectsOwnConfiguration() throws Exception {
         LintMojo mojo = mojo();
@@ -113,7 +110,6 @@ class LintMojoTest {
         assertTrue(commands.commands.isEmpty());
     }
 
-    // --extend-select takes precedence over a project's `ignore`, which is what keeps these rules on.
     @Test
     void enforcesTheConfiguredRulesOnTopOfTheProjectsOwnConfiguration() throws Exception {
         LintMojo mojo = mojo();
@@ -169,8 +165,6 @@ class LintMojoTest {
         assertEquals("`ruff check` failed with exit code 2. See the output above.", e.getMessage());
     }
 
-    // uv also exits with 1, for example when it can't download ruff, so installing ruff is its own step and a
-    // failure there is never reported as lint violations.
     @Test
     void reportsABuildErrorWithoutLintingWhenRuffCantBeInstalled() {
         commands.exitingWith(0, 1);

@@ -6,6 +6,7 @@ import java.nio.file.Path;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.HashMap;
@@ -26,8 +27,6 @@ import org.apache.maven.shared.utils.cli.StreamConsumer;
 
 public abstract class BaseMojo extends AbstractMojo {
 
-    // The tool versions the plugin runs under Maven, whatever a project pins for its own use. Changing them is
-    // a deliberate plugin release, so a new ruff or pytest release can't break a build that changed nothing.
     static final String RUFF_VERSION = "0.17.3";
     static final String PYTEST_VERSION = "9.2.0";
 
@@ -43,8 +42,6 @@ public abstract class BaseMojo extends AbstractMojo {
     @Parameter(defaultValue = "${settings.offline}", readonly = true)
     protected boolean offline;
 
-    // When this Maven build started: the same for every goal and every module of a reactor build, so they all
-    // give a snapshot the same timestamp.
     @Parameter(defaultValue = "${session.request.startTime}", readonly = true)
     protected Date buildStartTime;
 
@@ -56,8 +53,6 @@ public abstract class BaseMojo extends AbstractMojo {
         return buildDir.toPath().resolve("python-build");
     }
 
-    // The virtualenv, bytecode and tool caches all go under target/, so a build never writes into the project.
-    // In Maven's offline mode (-o), uv stays offline too and works from its cache.
     protected Map<String, String> uvEnvironment() {
         Map<String, String> env = new HashMap<>();
         env.put("UV_PROJECT_ENVIRONMENT", getProjectVenvPath().toString());
@@ -69,15 +64,11 @@ public abstract class BaseMojo extends AbstractMojo {
         return env;
     }
 
-    // The plugin's own environment for the project: the project and its locked dependencies, under target/.
-    // A project's own .venv is never used or touched.
     protected Path getProjectVenvPath() {
         return getPythonMavenPath().resolve(".venv");
     }
 
-    // The plugin's own environment for tools that don't need the project, such as ruff. Named .venv, like the
-    // project's, because ruff and other tools skip directories with that name by default: a project running its
-    // own ruff must not lint the plugin's environments, even when target/ isn't in its .gitignore.
+    // Named .venv so that a project's own ruff skips it, as ruff skips .venv directories by default.
     protected Path getToolsVenvPath() {
         return getPythonMavenPath().resolve("tools").resolve(".venv");
     }
@@ -87,14 +78,12 @@ public abstract class BaseMojo extends AbstractMojo {
         return windows ? venv.resolve("Scripts").resolve(name + ".exe") : venv.resolve("bin").resolve(name);
     }
 
-    // Sets up the plugin's environment for the project. `--locked` fails on a missing or stale uv.lock instead
-    // of writing it.
-    protected void uvSync() throws MojoExecutionException {
-        run("uv", Arrays.asList("sync", "--locked"), uvEnvironment());
+    protected void uvSync(String... options) throws MojoExecutionException {
+        List<String> args = new ArrayList<>(Arrays.asList("sync", "--locked"));
+        args.addAll(Arrays.asList(options));
+        run("uv", args, uvEnvironment());
     }
 
-    // Installs the plugin's pinned version of a tool into one of its environments, replacing any other version
-    // there, such as one the project's lock pins. Creates the environment first if needed.
     protected Path installTool(Path venv, String tool, String version) throws MojoExecutionException {
         if (!Files.isDirectory(venv)) {
             run("uv", Arrays.asList("venv", venv.toString()), uvEnvironment());
@@ -104,9 +93,7 @@ public abstract class BaseMojo extends AbstractMojo {
         return venvExecutable(venv, tool);
     }
 
-    // Runs a check such as ruff or pytest straight from its environment, so its exit code is its own and never
-    // uv's. These exit with 1 when the project fails the check, which is a build failure (the project's fault),
-    // and with other codes when they can't run, which is a build error.
+    // ruff and pytest exit with 1 when the project fails the check, and with other codes when they can't run.
     protected void runCheck(String tool, String failure, Path executable, List<String> args)
             throws MojoExecutionException, MojoFailureException {
         checkExitCode(tool, failure, exec(executable.toString(), args, uvEnvironment()));
@@ -123,8 +110,6 @@ public abstract class BaseMojo extends AbstractMojo {
         }
     }
 
-    // Keeps ruff out of Maven's build directory, whether or not the project's .gitignore lists it. Passed as a
-    // --config override, which adds to the project's own extend-exclude.
     protected String ruffExcludeBuildDir() {
         String path = buildDir.getAbsolutePath().replace("\\", "\\\\").replace("\"", "\\\"");
         return "extend-exclude = [\"" + path + "\"]";
@@ -161,19 +146,7 @@ public abstract class BaseMojo extends AbstractMojo {
         }
     }
 
-    // Converts the Maven version to PEP 440, which Python packaging requires:
-    //   1.0.0                          -> 1.0.0
-    //   1.0.0-SNAPSHOT                 -> 1.0.0.dev20261105152300 (when the build started, UTC)
-    //   1.0.0-rc-1, -beta-2, -alpha3   -> 1.0.0rc1, 1.0.0b2, 1.0.0a3
-    //   1.0.0.Final, .RELEASE, -GA     -> 1.0.0
-    //   1.0.0-feature_name-SNAPSHOT    -> 1.0.0.dev20261105152300+feature.name
-    // Any other qualifier, such as the branch name gitflow and git-based versioning put in feature branch
-    // versions, has no place in a PEP 440 version except the local version label after the `+`. It keeps
-    // builds of different branches apart. Package indexes that follow PyPI's rules reject local versions.
-    // A snapshot's dev number is the build's start time, so each snapshot build has its own version, which
-    // sorts after the previous one: package indexes refuse a second upload of the same version.
-    // A qualifier only counts as a pre-release when it is nothing else, so `-a-team` or `-rc-fixes` is a
-    // branch, not an alpha or release candidate.
+    // The mapping is described in the README's Versioning section.
     protected String versionToPep440() throws MojoExecutionException {
         String v = version;
         boolean snapshot = v.regionMatches(true, Math.max(0, v.length() - SNAPSHOT.length()), SNAPSHOT, 0,
@@ -214,9 +187,8 @@ public abstract class BaseMojo extends AbstractMojo {
     private static final String SNAPSHOT = "-SNAPSHOT";
     private static final DateTimeFormatter SNAPSHOT_TIMESTAMP =
             DateTimeFormatter.ofPattern("yyyyMMddHHmmss").withZone(ZoneOffset.UTC);
-    // The numeric release, then an optional qualifier after a `-` or `.`.
     private static final Pattern MAVEN_VERSION = Pattern.compile("(\\d+(?:\\.\\d+)*)(?:[.-](.+))?");
-    // As Maven reads them: `a` and `b` only with a number (a1, b2), the long forms with or without one.
+    // As in Maven, `a` and `b` only count as alpha and beta when a number follows.
     private static final Pattern PRE_RELEASE =
             Pattern.compile("(alpha|beta|rc|cr|a(?=[.-]?\\d)|b(?=[.-]?\\d))[.-]?(\\d*)", Pattern.CASE_INSENSITIVE);
     private static final Pattern MILESTONE =

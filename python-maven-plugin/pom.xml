@@ -10,10 +10,37 @@
   <packaging>maven-plugin</packaging>
 
   <name>Python Maven Plugin</name>
-  <description>A maven plugin to integrate Python functionality into Maven projects</description>
+  <description>Builds, tests, lints and packages Python projects with Maven, using uv, ruff and pytest.</description>
+  <url>https://github.com/realms42/python-maven-plugin</url>
+
+  <licenses>
+    <license>
+      <name>GNU General Public License v3.0</name>
+      <url>https://www.gnu.org/licenses/gpl-3.0.txt</url>
+      <distribution>repo</distribution>
+    </license>
+  </licenses>
+
+  <developers>
+    <developer>
+      <id>realms42</id>
+      <url>https://github.com/realms42</url>
+    </developer>
+  </developers>
+
+  <scm>
+    <connection>scm:git:https://github.com/realms42/python-maven-plugin.git</connection>
+    <developerConnection>scm:git:https://github.com/realms42/python-maven-plugin.git</developerConnection>
+    <url>https://github.com/realms42/python-maven-plugin</url>
+    <tag>HEAD</tag>
+  </scm>
+
+  <issueManagement>
+    <system>GitHub Issues</system>
+    <url>https://github.com/realms42/python-maven-plugin/issues</url>
+  </issueManagement>
 
   <properties>
-    <!-- release, not source/target: it also rejects newer JDK APIs, so a build on a newer JDK fails like CI's JDK 11. -->
     <maven.compiler.release>11</maven.compiler.release>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
@@ -54,7 +81,6 @@
       <scope>test</scope>
     </dependency>
 
-    <!-- Matches the slf4j-api 1.7.x that maven-core brings, so Maven's classes stop warning about a missing binding in tests. -->
     <dependency>
       <groupId>org.slf4j</groupId>
       <artifactId>slf4j-nop</artifactId>
@@ -62,7 +88,6 @@
       <scope>test</scope>
     </dependency>
   </dependencies>
-
 
   <build>
     <plugins>
@@ -84,9 +109,18 @@
         <artifactId>maven-surefire-plugin</artifactId>
         <version>3.5.4</version>
       </plugin>
-      <!-- Integration tests: each directory under src/it is a Python project built by real Maven, uv, ruff and
-           pytest with this plugin, then checked by its verify.groovy. They run in `mvn verify` and later phases;
-           -Dinvoker.skip skips them, and -Dinvoker.test=lint-* runs some. -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-release-plugin</artifactId>
+        <version>3.3.1</version>
+        <configuration>
+          <tagNameFormat>v@{project.version}</tagNameFormat>
+          <releaseProfiles>release</releaseProfiles>
+          <pushChanges>false</pushChanges>
+          <localCheckout>true</localCheckout>
+          <scmCommentPrefix>[release] </scmCommentPrefix>
+        </configuration>
+      </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-invoker-plugin</artifactId>
@@ -119,5 +153,87 @@
       </plugin>
     </plugins>
   </build>
+
+  <profiles>
+    <!-- Used by release:perform: see "Releasing the plugin" in the README. -->
+    <profile>
+      <id>release</id>
+      <properties>
+        <maven.deploy.skip>true</maven.deploy.skip>
+      </properties>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-enforcer-plugin</artifactId>
+            <version>3.6.3</version>
+            <executions>
+              <execution>
+                <id>release-versions-only</id>
+                <phase>deploy</phase>
+                <goals>
+                  <goal>enforce</goal>
+                </goals>
+                <configuration>
+                  <rules>
+                    <requireReleaseVersion>
+                      <message>Only release versions are deployed to Maven Central.</message>
+                    </requireReleaseVersion>
+                  </rules>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+          <plugin>
+            <groupId>org.sonatype.central</groupId>
+            <artifactId>central-publishing-maven-plugin</artifactId>
+            <version>0.12.0</version>
+            <executions>
+              <execution>
+                <id>central-staging</id>
+                <phase>deploy</phase>
+                <goals>
+                  <goal>publish</goal>
+                </goals>
+              </execution>
+            </executions>
+            <configuration>
+              <publishingServerId>central</publishingServerId>
+              <autoPublish>false</autoPublish>
+            </configuration>
+          </plugin>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-source-plugin</artifactId>
+            <version>3.4.0</version>
+            <executions>
+              <execution>
+                <id>attach-sources</id>
+                <goals>
+                  <goal>jar-no-fork</goal>
+                </goals>
+              </execution>
+            </executions>
+          </plugin>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-javadoc-plugin</artifactId>
+            <version>3.12.0</version>
+            <configuration>
+              <doclint>all,-missing</doclint>
+            </configuration>
+            <executions>
+              <execution>
+                <id>attach-javadocs</id>
+                <goals>
+                  <goal>jar</goal>
+                </goals>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+  </profiles>
 
 </project>
