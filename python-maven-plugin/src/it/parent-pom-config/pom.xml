@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>it</groupId>
+  <artifactId>parent-pom-config</artifactId>
+  <version>1</version>
+  <packaging>pom</packaging>
+  <modules>
+    <module>child</module>
+  </modules>
+  <build>
+    <pluginManagement>
+      <plugins>
+        <plugin>
+          <groupId>@project.groupId@</groupId>
+          <artifactId>@project.artifactId@</artifactId>
+          <version>@project.version@</version>
+          <configuration>
+            <enforcedRules>
+              <rule>E</rule>
+              <rule>F</rule>
+              <rule>N</rule>
+            </enforcedRules>
+            <ruffSettings>
+              <line-length>79</line-length>
+              <format.quote-style>"single"</format.quote-style>
+            </ruffSettings>
+          </configuration>
+        </plugin>
+      </plugins>
+    </pluginManagement>
+  </build>
+</project>
