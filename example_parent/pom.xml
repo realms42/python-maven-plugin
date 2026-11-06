@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  An example parent POM for Python projects built with python-maven-plugin. Projects inherit the plugin and all of
+  its configuration from here, so each project's own POM only names itself, and a policy changes in one place.
+  It also aggregates the example, so `mvn install` here builds both.
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>com.github.realms42</groupId>
+    <artifactId>example-parent</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+    <packaging>pom</packaging>
+
+    <name>Example Python Parent</name>
+    <description>Example parent POM: the shared python-maven-plugin configuration for Python projects</description>
+
+    <modules>
+        <module>../example_package</module>
+    </modules>
+
+    <properties>
+        <python-maven-plugin.version>1.0.0-SNAPSHOT</python-maven-plugin.version>
+    </properties>
+
+    <build>
+        <plugins>
+            <!-- Declared here, with extensions, so every child gets the python packaging and these settings. -->
+            <plugin>
+                <groupId>com.github.realms42</groupId>
+                <artifactId>python-maven-plugin</artifactId>
+                <version>${python-maven-plugin.version}</version>
+                <extensions>true</extensions>
+                <configuration>
+                    <!-- The base ruleset, added to each project's own rules; projects can't switch these off. -->
+                    <enforcedRules>
+                        <rule>E</rule>
+                        <rule>W</rule>
+                        <rule>F</rule>
+                        <rule>I</rule>
+                        <rule>B</rule>
+                        <rule>UP</rule>
+                    </enforcedRules>
+                    <!-- Ruff settings for every project; values are TOML. A project's own value for these is
+                         overridden under Maven; its other ruff settings stay its own. -->
+                    <ruffSettings>
+                        <line-length>100</line-length>
+                    </ruffSettings>
+                    <!-- pytest options for every project. -->
+                    <pytestSettings>
+                        <xfail_strict>true</xfail_strict>
+                    </pytestSettings>
+                    <!-- The tool versions, pinned here rather than relying on the plugin's defaults. -->
+                    <ruffVersion>0.17.3</ruffVersion>
+                    <pytestVersion>9.2.0</pytestVersion>
+
+                    <!-- Safeguard: if publishing ever fires, its target is PyPI's staging index, TestPyPI, never
+                         PyPI itself. The plugin refuses public indexes, TestPyPI included, so even this fails
+                         before anything is uploaded. Point these at a private index to publish for real. -->
+                    <releaseRepository>
+                        <id>testpypi</id>
+                        <url>https://test.pypi.org/legacy/</url>
+                    </releaseRepository>
+                    <snapshotRepository>
+                        <id>testpypi</id>
+                        <url>https://test.pypi.org/legacy/</url>
+                    </snapshotRepository>
+                </configuration>
+                <executions>
+                    <!-- publish runs in the deploy phase, so `mvn deploy` is what would fire it. -->
+                    <execution>
+                        <id>publish</id>
+                        <goals>
+                            <goal>publish</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>

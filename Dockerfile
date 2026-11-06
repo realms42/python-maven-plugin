@@ -17,9 +17,12 @@ COPY python-maven-plugin .
 # The image only builds: tests, integration tests and checks run in CI, not here.
 RUN mvn install -B -Dmaven.test.skip=true -Dinvoker.skip
 
-WORKDIR /example
-COPY example_package .
+# The example's parent finds it as ../example_package, so both keep their repository layout.
+WORKDIR /examples
+COPY example_parent example_parent
+COPY example_package example_package
+WORKDIR /examples/example_parent
 # No cache mount on /root/.m2: it would start empty and hide the plugin installed there above.
-# Builds and packages the example without its tests, lint or format check.
+# Builds and packages the example, through its parent, without its tests, lint or format check.
 RUN --mount=type=cache,target=/root/.cache/uv \
     mvn install -B -Dmaven.test.skip=true -Dpython.lint.skip -Dpython.format.skip
