@@ -10,10 +10,12 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.file.Path;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import org.apache.maven.plugin.MojoExecutionException;
+import org.apache.maven.plugin.MojoFailureException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -27,26 +29,88 @@ class LintMojoTest {
     private final Commands commands = new Commands();
 
     private LintMojo mojo() {
-        return configure(new LintMojo() {
+        LintMojo mojo = configure(new LintMojo() {
             @Override
             protected int exec(String cmd, List<String> args, Map<String, String> env) {
                 return commands.exec(cmd, args, env);
             }
         }, project, "1.0.0");
+        set(mojo, "ruffVersion", "0.17.3");
+        set(mojo, "enforcedRules", List.of("E", "W", "F", "I", "B", "UP"));
+        return mojo;
+    }
+
+    private Path tools() {
+        return project.resolve("target/python-maven-plugin/tools/.venv");
     }
 
     @Test
-    void runsRuffCheckWithoutFixingAndOutsideTheBuildDirectory() throws Exception {
+    void runsThePluginsPinnedRuffFromItsOwnEnvironmentWithoutFixingAndOutsideTheBuildDirectory() throws Exception {
+        mojo().execute();
+
+        assertEquals(List.of(
+                List.of("uv", "venv", tools().toString()),
+                List.of("uv", "pip", "install", "--python", tools().toString(), "ruff==0.17.3"),
+                List.of(BaseMojo.venvExecutable(tools(), "ruff").toString(), "check",
+                        "--config", "extend-exclude = [\"" + project.resolve("target") + "\"]",
+                        "--extend-select", "E,W,F,I,B,UP")),
+                commands.commands);
+        assertEquals(project.resolve("target/python-maven-plugin/ruff-cache").toString(),
+                commands.environments.get(2).get("RUFF_CACHE_DIR"));
+    }
+
+    // The project's environment isn't needed to lint, so lint never syncs it.
+    @Test
+    void neverSetsUpTheProjectsEnvironment() throws Exception {
+        mojo().execute();
+
+        for (List<String> command : commands.commands) {
+            assertFalse(command.contains("sync"), command.toString());
+        }
+    }
+
+    @Test
+    void ruffVersionChoosesTheVersionInstalled() throws Exception {
         LintMojo mojo = mojo();
-        set(mojo, "enforcedRules", List.of("E", "W", "F", "I", "B", "UP"));
+        set(mojo, "ruffVersion", "0.15.0");
 
         mojo.execute();
 
-        assertEquals(List.of("uv", "run", "--locked", "--with", "ruff", "ruff", "check",
+        assertEquals("ruff==0.15.0", commands.commands.get(1).get(5));
+    }
+
+    // A parent POM's ruff settings are --config overrides, applied over the project's own configuration. They are
+    // passed in a stable order, whatever order Maven's map has.
+    @Test
+    void appliesTheRuffSettingsOverTheProjectsOwnConfiguration() throws Exception {
+        LintMojo mojo = mojo();
+        Map<String, String> settings = new HashMap<>();
+        settings.put("target-version", "\"py311\"");
+        settings.put("line-length", " 100 ");
+        settings.put("lint.pydocstyle.convention", "\"google\"");
+        set(mojo, "ruffSettings", settings);
+
+        mojo.execute();
+
+        assertEquals(List.of(BaseMojo.venvExecutable(tools(), "ruff").toString(), "check",
                 "--config", "extend-exclude = [\"" + project.resolve("target") + "\"]",
-                "--extend-select", "E,W,F,I,B,UP"), commands.commands.get(0));
-        assertEquals(project.resolve("target/python-maven-plugin/ruff-cache").toString(),
-                commands.environments.get(0).get("RUFF_CACHE_DIR"));
+                "--config", "line-length = 100",
+                "--config", "lint.pydocstyle.convention = \"google\"",
+                "--config", "target-version = \"py311\"",
+                "--extend-select", "E,W,F,I,B,UP"), commands.commands.get(2));
+    }
+
+    @Test
+    void rejectsARuffSettingWithoutAValueBeforeRunningAnything() {
+        LintMojo mojo = mojo();
+        Map<String, String> settings = new HashMap<>();
+        settings.put("line-length", null);
+        set(mojo, "ruffSettings", settings);
+
+        MojoExecutionException e = assertThrows(MojoExecutionException.class, mojo::execute);
+
+        assertTrue(e.getMessage().startsWith("The ruffSettings entry <line-length> has no value."), e.getMessage());
+        assertTrue(commands.commands.isEmpty());
     }
 
     // --extend-select takes precedence over a project's `ignore`, which is what keeps these rules on.
@@ -57,7 +121,7 @@ class LintMojoTest {
 
         mojo.execute();
 
-        List<String> command = commands.commands.get(0);
+        List<String> command = commands.commands.get(2);
         assertEquals(List.of("--extend-select", "E,F,S"), command.subList(command.size() - 2, command.size()));
     }
 
@@ -73,7 +137,7 @@ class LintMojoTest {
         for (List<String> command : commands.commands) {
             assertFalse(command.contains("--extend-select"), command.toString());
         }
-        assertEquals(3, commands.commands.size());
+        assertEquals(9, commands.commands.size());
     }
 
     @Test
@@ -88,11 +152,32 @@ class LintMojoTest {
     }
 
     @Test
-    void failsOnLintErrors() {
-        commands.exitingWith(1);
+    void failsTheBuildWhenRuffFindsViolations() {
+        commands.exitingWith(0, 0, 1);
+
+        MojoFailureException e = assertThrows(MojoFailureException.class, () -> mojo().execute());
+
+        assertEquals("ruff found lint violations. See its output above.", e.getMessage());
+    }
+
+    @Test
+    void reportsABuildErrorWhenRuffCantRun() {
+        commands.exitingWith(0, 0, 2);
 
         MojoExecutionException e = assertThrows(MojoExecutionException.class, () -> mojo().execute());
 
-        assertEquals("Command failed with exit code 1", e.getMessage());
+        assertEquals("`ruff check` failed with exit code 2. See the output above.", e.getMessage());
+    }
+
+    // uv also exits with 1, for example when it can't download ruff, so installing ruff is its own step and a
+    // failure there is never reported as lint violations.
+    @Test
+    void reportsABuildErrorWithoutLintingWhenRuffCantBeInstalled() {
+        commands.exitingWith(0, 1);
+
+        MojoExecutionException e = assertThrows(MojoExecutionException.class, () -> mojo().execute());
+
+        assertEquals("`uv pip` failed with exit code 1. See the output above.", e.getMessage());
+        assertEquals(2, commands.commands.size());
     }
 }

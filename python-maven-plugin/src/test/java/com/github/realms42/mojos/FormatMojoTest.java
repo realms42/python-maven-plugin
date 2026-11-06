@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.apache.maven.plugin.MojoExecutionException;
+import org.apache.maven.plugin.MojoFailureException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -25,20 +26,40 @@ class FormatMojoTest {
     private final Commands commands = new Commands();
 
     private FormatMojo mojo() {
-        return configure(new FormatMojo() {
+        FormatMojo mojo = configure(new FormatMojo() {
             @Override
             protected int exec(String cmd, List<String> args, Map<String, String> env) {
                 return commands.exec(cmd, args, env);
             }
         }, project, "1.0.0");
+        set(mojo, "ruffVersion", "0.17.3");
+        return mojo;
     }
 
     @Test
-    void onlyChecksFormattingNeverRewritesAndStaysOutOfTheBuildDirectory() throws Exception {
+    void onlyChecksFormattingWithThePluginsPinnedRuffNeverRewritesAndStaysOutOfTheBuildDirectory()
+            throws Exception {
         mojo().execute();
 
-        assertEquals(List.of("uv", "run", "--locked", "--with", "ruff", "ruff", "format", "--check",
-                "--config", "extend-exclude = [\"" + project.resolve("target") + "\"]"), commands.commands.get(0));
+        Path tools = project.resolve("target/python-maven-plugin/tools/.venv");
+        assertEquals(List.of(
+                List.of("uv", "venv", tools.toString()),
+                List.of("uv", "pip", "install", "--python", tools.toString(), "ruff==0.17.3"),
+                List.of(BaseMojo.venvExecutable(tools, "ruff").toString(), "format", "--check",
+                        "--config", "extend-exclude = [\"" + project.resolve("target") + "\"]")),
+                commands.commands);
+    }
+
+    @Test
+    void appliesTheRuffSettingsToo() throws Exception {
+        FormatMojo mojo = mojo();
+        set(mojo, "ruffSettings", Map.of("format.quote-style", "\"single\"", "line-length", "100"));
+
+        mojo.execute();
+
+        List<String> command = commands.commands.get(2);
+        assertEquals(List.of("--config", "format.quote-style = \"single\"", "--config", "line-length = 100"),
+                command.subList(command.size() - 4, command.size()));
     }
 
     @Test
@@ -53,11 +74,30 @@ class FormatMojoTest {
     }
 
     @Test
-    void failsOnUnformattedFiles() {
-        commands.exitingWith(1);
+    void failsTheBuildWhenFilesArentFormatted() {
+        commands.exitingWith(0, 0, 1);
+
+        MojoFailureException e = assertThrows(MojoFailureException.class, () -> mojo().execute());
+
+        assertEquals("ruff found files that aren't formatted. Run `ruff format` to fix them.", e.getMessage());
+    }
+
+    @Test
+    void reportsABuildErrorWhenRuffCantRun() {
+        commands.exitingWith(0, 0, 2);
 
         MojoExecutionException e = assertThrows(MojoExecutionException.class, () -> mojo().execute());
 
-        assertEquals("Command failed with exit code 1", e.getMessage());
+        assertEquals("`ruff format` failed with exit code 2. See the output above.", e.getMessage());
+    }
+
+    @Test
+    void reportsABuildErrorWithoutCheckingWhenRuffCantBeInstalled() {
+        commands.exitingWith(0, 1);
+
+        MojoExecutionException e = assertThrows(MojoExecutionException.class, () -> mojo().execute());
+
+        assertEquals("`uv pip` failed with exit code 1. See the output above.", e.getMessage());
+        assertEquals(2, commands.commands.size());
     }
 }

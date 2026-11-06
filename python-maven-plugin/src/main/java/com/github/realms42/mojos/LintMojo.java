@@ -1,37 +1,49 @@
 package com.github.realms42.mojos;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
 import org.apache.maven.plugin.MojoExecutionException;
+import org.apache.maven.plugin.MojoFailureException;
 import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
 
-@Mojo(name = "lint", defaultPhase = LifecyclePhase.VERIFY)
-public class LintMojo extends BaseMojo {
+/**
+ * Lints the project with {@code ruff check}, using the project's own ruff configuration plus the
+ * {@code enforcedRules} and {@code ruffSettings}. Runs the plugin's pinned ruff ({@code ruffVersion}), not the
+ * project's.
+ * Never fixes anything: it reports violations and fails the build.
+ */
+@Mojo(name = "lint", defaultPhase = LifecyclePhase.VERIFY, threadSafe = true)
+public class LintMojo extends RuffMojo {
 
+    /** Skips linting. */
     @Parameter(property = "python.lint.skip", defaultValue = "false")
     private boolean skip;
 
-    // The base ruleset every project is linted with. Projects add to it with their own ruff configuration
-    // (`extend-select` in pyproject.toml or ruff.toml), which ruff also reads when run outside Maven. It is passed
-    // as --extend-select, which ruff applies over a project's `select` and `ignore`, so a project can't switch
-    // these rules off; per-file-ignores and `# noqa` still work. A parent POM can set this for all its projects,
-    // and an empty value lints with the project's own configuration alone. The default is declared on the
-    // annotation because Maven injects an empty list over a field initializer when the property is unset.
+    /**
+     * The base ruleset every project is linted with, as ruff rule selectors such as {@code E} or {@code B006}.
+     * Projects add to it with their own ruff configuration ({@code extend-select} in {@code pyproject.toml} or
+     * {@code ruff.toml}), which ruff also reads when run outside Maven. A project's {@code select} and
+     * {@code ignore} can't switch these rules off; {@code per-file-ignores} and {@code # noqa} still work.
+     * Set it in a parent POM to apply one base to many projects, or leave it empty to lint with the project's
+     * own configuration alone.
+     */
+    // Passed as --extend-select, which ruff applies over a project's `select` and `ignore`. The default is
+    // declared on the annotation because Maven injects an empty list over a field initializer when the
+    // property is unset.
     @Parameter(property = "python.lint.enforcedRules", defaultValue = "E,W,F,I,B,UP")
     private List<String> enforcedRules;
 
     @Override
-    public void execute() throws MojoExecutionException {
+    public void execute() throws MojoExecutionException, MojoFailureException {
         if (skip) {
             getLog().info("Linting is skipped.");
             return;
         }
-        List<String> args = new ArrayList<>(Arrays.asList("check", "--config", ruffExcludeBuildDir()));
+        List<String> args = new ArrayList<>();
         List<String> rules = enforcedRules == null ? List.of() : enforcedRules.stream()
                 .map(String::trim)
                 .filter(rule -> !rule.isEmpty())
@@ -40,6 +52,6 @@ public class LintMojo extends BaseMojo {
             args.add("--extend-select");
             args.add(String.join(",", rules));
         }
-        run("uv", uvRun("ruff", args.toArray(String[]::new)), uvEnvironment());
+        runRuff("ruff check", "ruff found lint violations. See its output above.", List.of("check"), args);
     }
 }

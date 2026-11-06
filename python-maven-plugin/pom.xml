@@ -13,8 +13,8 @@
   <description>A maven plugin to integrate Python functionality into Maven projects</description>
 
   <properties>
-    <maven.compiler.source>11</maven.compiler.source>
-    <maven.compiler.target>11</maven.compiler.target>
+    <!-- release, not source/target: it also rejects newer JDK APIs, so a build on a newer JDK fails like CI's JDK 11. -->
+    <maven.compiler.release>11</maven.compiler.release>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
   </properties>

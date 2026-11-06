@@ -1,6 +1,7 @@
 package com.github.realms42.mojos;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import java.io.InputStream;
@@ -16,6 +17,7 @@ import javax.xml.parsers.DocumentBuilderFactory;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 
@@ -45,6 +47,28 @@ class PluginWiringTest {
                 bindings);
     }
 
+    // Maven warns about goals not marked thread-safe in parallel builds (-T). Each goal works in its own project's
+    // directory and target/, and uv locks its shared cache itself.
+    @ParameterizedTest
+    @ValueSource(strings = {"build", "test", "package", "lint", "format", "publish"})
+    void goalIsThreadSafe(String goal) throws Exception {
+        assertEquals("true", child(mojo(goal), "threadSafe").getTextContent());
+    }
+
+    // `mvn help:describe` and the plugin's documentation come from Javadoc on the goal and its parameters.
+    @ParameterizedTest
+    @ValueSource(strings = {"build", "test", "package", "lint", "format", "publish"})
+    void goalAndEveryParameterAUserCanSetAreDocumented(String goal) throws Exception {
+        Element mojo = mojo(goal);
+        assertFalse(child(mojo, "description").getTextContent().isBlank(), goal + " has no description");
+        for (Element parameter : children(child(mojo, "parameters"))) {
+            if (Boolean.parseBoolean(child(parameter, "editable").getTextContent())) {
+                assertFalse(child(parameter, "description").getTextContent().isBlank(),
+                        goal + "'s parameter " + child(parameter, "name").getTextContent() + " has no description");
+            }
+        }
+    }
+
     @ParameterizedTest
     @CsvSource({
             "build, compile",
@@ -56,6 +80,32 @@ class PluginWiringTest {
     })
     void goalDefaultsToItsPhase(String goal, String phase) throws Exception {
         assertEquals(phase, child(mojo(goal), "phase").getTextContent());
+    }
+
+    // A parent POM configures ruff once, at plugin level, for both goals that run it. The other goals don't
+    // take the ruff parameters, so `help:describe` doesn't show them there.
+    @ParameterizedTest
+    @CsvSource({
+            "lint, true", "format, true",
+            "build, false", "test, false", "package, false", "publish, false",
+    })
+    void onlyTheRuffGoalsTakeTheRuffParameters(String goal, boolean ruff) throws Exception {
+        for (String name : List.of("ruffVersion", "ruffSettings")) {
+            boolean has = children(child(mojo(goal), "parameters")).stream()
+                    .anyMatch(p -> name.equals(child(p, "name").getTextContent()));
+            assertEquals(ruff, has, goal + " / " + name);
+        }
+    }
+
+    // Builds use the plugin's own tool versions unless a POM or -D changes them, so they can't drift.
+    @ParameterizedTest
+    @CsvSource({
+            "lint, ruffVersion, " + BaseMojo.RUFF_VERSION,
+            "format, ruffVersion, " + BaseMojo.RUFF_VERSION,
+            "test, pytestVersion, " + BaseMojo.PYTEST_VERSION,
+    })
+    void toolVersionsArePinnedByDefault(String goal, String parameter, String version) throws Exception {
+        assertEquals(version, child(child(mojo(goal), "configuration"), parameter).getAttribute("default-value"));
     }
 
     // Maven injects an empty list over a field initializer when the property is unset, so the default has to
@@ -72,6 +122,9 @@ class PluginWiringTest {
             "test, skip, maven.test.skip",
             "lint, skip, python.lint.skip",
             "lint, enforcedRules, python.lint.enforcedRules",
+            "lint, ruffVersion, python.ruff.version",
+            "format, ruffVersion, python.ruff.version",
+            "test, pytestVersion, python.pytest.version",
             "format, skip, python.format.skip",
             "publish, skipPublish, python.publish.skip",
             "publish, skipReleases, python.publish.skipReleases",

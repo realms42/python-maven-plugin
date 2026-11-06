@@ -2,9 +2,11 @@ package com.github.realms42.mojos;
 
 import java.lang.reflect.Field;
 import java.nio.file.Path;
+import java.time.Instant;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Date;
 import java.util.Deque;
 import java.util.List;
 import java.util.Map;
@@ -17,10 +19,15 @@ final class MojoTesting {
     private MojoTesting() {
     }
 
+    // The start time every test build gets, and the snapshot timestamp it gives (UTC).
+    static final Instant BUILD_START = Instant.parse("2026-11-05T15:23:00Z");
+    static final String BUILD_TIMESTAMP = "20261105152300";
+
     static <T extends BaseMojo> T configure(T mojo, Path project, String version) {
         mojo.basePath = project.toFile();
         mojo.buildDir = project.resolve("target").toFile();
         mojo.version = version;
+        mojo.buildStartTime = Date.from(BUILD_START);
         mojo.setLog(new RecordingLog());
         return mojo;
     }
