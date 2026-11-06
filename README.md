@@ -103,7 +103,10 @@ requires. The `build` goal logs the result:
 | `1.0.0-feature_name-SNAPSHOT` | `1.0.0.dev20261105152300+feature.name` |
 | `1.0.0-M1` | rejected: Python has no milestones; use `-alpha-1` or `-rc-1` |
 
-Gitflow and git-based versioning (gitflow-maven-plugin, jgitver) put the branch name in feature branch versions.
+Gitflow and git-based versioning put the branch name in feature branch versions: gitflow-maven-plugin's
+`feature-start` makes `1.0.0-SNAPSHOT` into `1.0.0-JIRA-42_Add-Login-SNAPSHOT`, and jgitver gives a
+`feature/JIRA-42_add-login` branch `1.0.1-feature_jira_42_add_login-SNAPSHOT`. Both build, as
+`1.0.0.dev…+jira.42.add.login` and `1.0.1.dev…+feature.jira.42.add.login`.
 The only place PEP 440 allows such text is the local version label after the `+`: lowercased, with every run of
 other characters turned into a `.`. It keeps builds of different branches apart, and sorts right after the base
 version, before any pre-release. A qualifier only counts as a pre-release when it is nothing else, so a branch

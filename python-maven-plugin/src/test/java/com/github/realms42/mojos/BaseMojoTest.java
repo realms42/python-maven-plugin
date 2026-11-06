@@ -66,6 +66,15 @@ class BaseMojoTest {
             "2.1.4-TR-123-SNAPSHOT, 2.1.4.dev20261105152300+tr.123",
             "1.0.1-3-SNAPSHOT, 1.0.1.dev20261105152300+3",
             "1.0.0-my-feature, 1.0.0+my.feature",
+            // Versions the tools really produced, building feature branches of example_package:
+            // gitflow-maven-plugin 1.21.0 feature-start (the feature name, without feature/)...
+            "1.0.0-login-SNAPSHOT, 1.0.0.dev20261105152300+login",
+            "1.0.0-JIRA-42_Add-Login-SNAPSHOT, 1.0.0.dev20261105152300+jira.42.add.login",
+            "1.0.0-Release-Candidate-Fixes-SNAPSHOT, 1.0.0.dev20261105152300+release.candidate.fixes",
+            "1.0.0-user.profile_v2-SNAPSHOT, 1.0.0.dev20261105152300+user.profile.v2",
+            // ...and jgitver 1.9.0 (the whole branch name, lowercased).
+            "1.0.1-feature_jira_42_add_login-SNAPSHOT, 1.0.1.dev20261105152300+feature.jira.42.add.login",
+            "1.0.1-bugfix_issue_7-SNAPSHOT, 1.0.1.dev20261105152300+bugfix.issue.7",
             // Branch names that start like a pre-release are still branch names.
             "1.0.0-a-team-SNAPSHOT, 1.0.0.dev20261105152300+a.team",
             "1.0.0-rc-fixes-SNAPSHOT, 1.0.0.dev20261105152300+rc.fixes",
