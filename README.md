@@ -62,9 +62,14 @@ cache-keys = [{ file = "pyproject.toml" }, { git = { commit = true, tags = true 
 ```
 
 **3. Build:** `mvn install` builds, tests, packages, lints and checks the formatting, then installs the sdist and
-wheel into the local Maven repository. `example_parent/` and `example_package/` are a complete example: the
-parent holds the plugin and its configuration, the package only names itself, and `mvn install` in
-`example_parent/` builds both.
+wheel into the local Maven repository.
+
+The examples are independent projects, as if each lived in its own repository, connected only through the Maven
+repository. Build them in order, each with `mvn install` (or `task rpm` for all of them):
+
+1. `example_parent/`: a parent POM holding the plugin and its configuration.
+2. `example_package/`: a Python package that only names itself and inherits the rest from the installed parent.
+3. `example_rpm/`: an RPM of the installed package's wheel (see [Building an RPM](#building-an-rpm)).
 
 ## The build
 
@@ -289,9 +294,10 @@ won't install, so `wheel_info.py` reads the real file name and version from the 
 is the wheel's, with pre-releases written Fedora's way: `1.0.0.dev20261109092243` becomes
 `1.0.0~dev20261109092243`.
 
-It needs `rpm-build`, `python3-devel`, `pyproject-rpm-macros` and `python3-pip`, as on Fedora, so it is only
-built with the `rpm` profile: `task rpm`, or `mvn install -Prpm` in `example_parent/`. CI builds it in a Fedora
-container, installs the RPM and imports the package from it.
+It needs `rpm-build`, `python3-devel`, `pyproject-rpm-macros` and `python3-pip`, as on Fedora, and the example's
+wheel installed in the Maven repository: `task rpm` builds the plugin, parent, package and RPM in turn. CI builds it
+in a Fedora container, installs the RPM and imports the package from it; the main CI job and the Docker image
+leave it out.
 
 ## Configuring many projects from a parent POM
 

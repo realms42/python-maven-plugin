@@ -13,20 +13,6 @@
     <name>Example Python Parent</name>
     <description>Example parent POM: the shared python-maven-plugin configuration for Python projects</description>
 
-    <modules>
-        <module>../example_package</module>
-    </modules>
-
-    <profiles>
-        <!-- -Prpm also packages the example's wheel as an RPM: see "Building an RPM" in the README. -->
-        <profile>
-            <id>rpm</id>
-            <modules>
-                <module>../example_rpm</module>
-            </modules>
-        </profile>
-    </profiles>
-
     <properties>
         <python-maven-plugin.version>1.0.0-SNAPSHOT</python-maven-plugin.version>
     </properties>

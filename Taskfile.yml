@@ -6,6 +6,7 @@ vars:
   PLUGIN_DIR: python-maven-plugin
   PARENT_DIR: example_parent
   EXAMPLE_DIR: example_package
+  RPM_DIR: example_rpm
   MVN: mvn -B
   IMAGE: python-maven-plugin:latest
 
@@ -47,30 +48,39 @@ tasks:
     cmds:
       - '{{.MVN}} dependency:go-offline'
 
-  example:
-    desc: Build the example parent and package using the installed plugin
+  parent:
+    desc: Install the example parent POM
     deps: [build]
     dir: '{{.PARENT_DIR}}'
+    run: once
+    cmds:
+      - '{{.MVN}} install'
+
+  example:
+    desc: Build and install the example package, which inherits the installed parent
+    deps: [parent]
+    dir: '{{.EXAMPLE_DIR}}'
+    run: once
     cmds:
       - '{{.MVN}} install'
 
   rpm:
-    desc: Build the example package and its RPM (needs rpmbuild and pyproject-rpm-macros)
-    deps: [build]
-    dir: '{{.PARENT_DIR}}'
+    desc: Build the RPM from the installed example wheel (needs rpmbuild and pyproject-rpm-macros)
+    deps: [example]
+    dir: '{{.RPM_DIR}}'
     cmds:
-      - '{{.MVN}} install -Prpm'
+      - '{{.MVN}} install'
 
   lint:
     desc: Lint the example package via the plugin's lint goal
-    deps: [build]
+    deps: [parent]
     dir: '{{.EXAMPLE_DIR}}'
     cmds:
       - '{{.MVN}} com.github.realms42:python-maven-plugin:lint'
 
   format:
     desc: Check the example package's formatting via the plugin's format goal
-    deps: [build]
+    deps: [parent]
     dir: '{{.EXAMPLE_DIR}}'
     cmds:
       - '{{.MVN}} com.github.realms42:python-maven-plugin:format'
@@ -85,6 +95,8 @@ tasks:
     cmds:
       - '{{.MVN}} -f {{.PLUGIN_DIR}}/pom.xml clean'
       - '{{.MVN}} -f {{.PARENT_DIR}}/pom.xml clean'
+      - '{{.MVN}} -f {{.EXAMPLE_DIR}}/pom.xml clean'
+      - '{{.MVN}} -f {{.RPM_DIR}}/pom.xml clean'
 
   all:
     desc: Build the plugin and the example package end to end

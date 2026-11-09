@@ -14,9 +14,11 @@ RUN mvn dependency:go-offline -B
 COPY python-maven-plugin .
 RUN mvn install -B -Dmaven.test.skip=true -Dinvoker.skip
 
-WORKDIR /examples
-COPY example_parent example_parent
-COPY example_package example_package
-WORKDIR /examples/example_parent
+WORKDIR /example_parent
+COPY example_parent .
+RUN mvn install -B
+
+WORKDIR /example_package
+COPY example_package .
 RUN --mount=type=cache,target=/root/.cache/uv \
     mvn install -B -Dmaven.test.skip=true -Dpython.lint.skip -Dpython.format.skip
