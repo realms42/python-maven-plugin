@@ -20,9 +20,12 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
+import java.util.zip.GZIPOutputStream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
+import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
+import org.apache.commons.compress.archivers.tar.TarArchiveOutputStream;
 import org.apache.maven.artifact.Artifact;
 import org.apache.maven.artifact.DefaultArtifact;
 import org.apache.maven.artifact.handler.DefaultArtifactHandler;
@@ -34,7 +37,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
-class WheelsMojoTest {
+class DistributionsMojoTest {
 
     @TempDir
     Path project;
@@ -43,12 +46,12 @@ class WheelsMojoTest {
     private final MavenProject mavenProject = new MavenProject();
 
     private Path output() {
-        return project.resolve("target/wheels");
+        return project.resolve("target/distributions");
     }
 
-    private WheelsMojo mojo() {
+    private DistributionsMojo mojo() {
         mavenProject.setArtifacts(artifacts);
-        WheelsMojo mojo = configure(new WheelsMojo(), project, "1.0.0-SNAPSHOT");
+        DistributionsMojo mojo = configure(new DistributionsMojo(), project, "1.0.0-SNAPSHOT");
         set(mojo, "project", mavenProject);
         set(mojo, "outputDirectory", output().toFile());
         return mojo;
@@ -79,6 +82,32 @@ class WheelsMojoTest {
                 distInfo + "WHEEL", wheelFile.toString()));
     }
 
+    private Path sdist(String file, Map<String, String> entries) throws IOException {
+        Path path = Files.createDirectories(project.resolve("repo")).resolve(file);
+        try (TarArchiveOutputStream tar = new TarArchiveOutputStream(
+                new GZIPOutputStream(Files.newOutputStream(path)))) {
+            tar.setLongFileMode(TarArchiveOutputStream.LONGFILE_POSIX);
+            for (Map.Entry<String, String> entry : entries.entrySet()) {
+                byte[] content = entry.getValue().getBytes(StandardCharsets.UTF_8);
+                TarArchiveEntry tarEntry = new TarArchiveEntry(entry.getKey());
+                tarEntry.setSize(content.length);
+                tar.putArchiveEntry(tarEntry);
+                tar.write(content);
+                tar.closeArchiveEntry();
+            }
+        }
+        return path;
+    }
+
+    private Path sdist(String file, String name, String version) throws IOException {
+        String top = name.replace('-', '_') + "-" + version + "/";
+        return sdist(file, Map.of(
+                top + "pyproject.toml", "[project]\n",
+                top + "src/pkg/__init__.py", "",
+                top + "PKG-INFO", "Metadata-Version: 2.4\nName: " + name + "\nVersion: " + version
+                        + "\nSummary: A test\n\nName: not-a-header\n"));
+    }
+
     private Artifact dependency(String artifactId, String version, String type, String classifier, Path file) {
         Artifact artifact = new DefaultArtifact("com.example", artifactId, version, "compile", type, classifier,
                 new DefaultArtifactHandler(type));
@@ -93,7 +122,7 @@ class WheelsMojoTest {
                 "1.0.0.dev20261109092818", "py3-none-any");
         dependency("example_package", "1.0.0-SNAPSHOT", "whl", "py3-none-any", file);
 
-        WheelsMojo mojo = mojo();
+        DistributionsMojo mojo = mojo();
         mojo.execute();
 
         Path copied = output().resolve("example_package-1.0.0.dev20261109092818-py3-none-any.whl");
@@ -104,9 +133,9 @@ class WheelsMojoTest {
         assertEquals("1.0.0.dev20261109092818", properties.getProperty("python.wheel.example_package.version"));
         assertEquals("1.0.0~~dev20261109092818", properties.getProperty("python.wheel.example_package.rpmVersion"));
         assertEquals(properties.getProperty("python.wheel.example_package.file"),
-                properties.getProperty("python.wheel.file"));
-        assertEquals("1.0.0.dev20261109092818", properties.getProperty("python.wheel.version"));
-        assertEquals("1.0.0~~dev20261109092818", properties.getProperty("python.wheel.rpmVersion"));
+                properties.getProperty("python.distribution.file"));
+        assertEquals("1.0.0.dev20261109092818", properties.getProperty("python.distribution.version"));
+        assertEquals("1.0.0~~dev20261109092818", properties.getProperty("python.distribution.rpmVersion"));
         assertEquals(6, properties.size());
         assertEquals(List.of("Copied com.example:example_package:whl:py3-none-any:1.0.0-SNAPSHOT as"
                 + " example_package-1.0.0.dev20261109092818-py3-none-any.whl"), log(mojo).info);
@@ -162,19 +191,18 @@ class WheelsMojoTest {
     @Test
     void leavesOtherDependenciesAlone() throws Exception {
         dependency("library", "1.0", "jar", null, Files.writeString(project.resolve("library.jar"), "jar"));
-        dependency("example_package", "1.0.0", "tar.gz", null,
-                Files.writeString(project.resolve("example_package-1.0.0.tar.gz"), "sdist"));
+        dependency("archive", "1.0", "zip", null, Files.writeString(project.resolve("archive.zip"), "zip"));
 
-        WheelsMojo mojo = mojo();
+        DistributionsMojo mojo = mojo();
         mojo.execute();
 
         assertFalse(Files.exists(output()));
-        assertEquals(List.of("The project has no wheel dependencies to copy."), log(mojo).warnings);
+        assertEquals(List.of("The project has no wheel or sdist dependencies to copy."), log(mojo).warnings);
         assertTrue(mavenProject.getProperties().isEmpty());
     }
 
     @Test
-    void setsTheWheelNeutralPropertiesOnlyWhenThereIsOneWheel() throws Exception {
+    void setsTheNeutralPropertiesOnlyWhenThereIsOneDistribution() throws Exception {
         dependency("first", "1.0", "whl", "py3-none-any", wheel("first.whl", "first", "1.0", "py3-none-any"));
         dependency("second", "2.0", "whl", "py3-none-any", wheel("second.whl", "second", "2.0", "py3-none-any"));
 
@@ -183,7 +211,7 @@ class WheelsMojoTest {
         Properties properties = mavenProject.getProperties();
         assertEquals("first-1.0-py3-none-any.whl", properties.getProperty("python.wheel.first.file"));
         assertEquals("second-2.0-py3-none-any.whl", properties.getProperty("python.wheel.second.file"));
-        assertFalse(properties.containsKey("python.wheel.file"));
+        assertFalse(properties.containsKey("python.distribution.file"));
         assertEquals(6, properties.size());
     }
 
@@ -194,13 +222,13 @@ class WheelsMojoTest {
         dependency("native", "1.0", "whl", "cp313-cp313-linux_x86_64",
                 wheel("b.whl", "native", "1.0", "cp313-cp313-linux_x86_64"));
 
-        WheelsMojo mojo = mojo();
+        DistributionsMojo mojo = mojo();
         mojo.execute();
 
         assertTrue(Files.isRegularFile(output().resolve("native-1.0-cp312-cp312-linux_x86_64.whl")));
         assertTrue(Files.isRegularFile(output().resolve("native-1.0-cp313-cp313-linux_x86_64.whl")));
         assertTrue(mavenProject.getProperties().isEmpty());
-        assertEquals(List.of("Not setting python.wheel.native.*: the project depends on 2 wheels of native."),
+        assertEquals(List.of("Not setting python.wheel.native.*: the project depends on 2 of them."),
                 log(mojo).warnings);
     }
 
@@ -208,16 +236,16 @@ class WheelsMojoTest {
     void setsNoRpmVersionForAVersionRpmCantExpress() throws Exception {
         dependency("pkg", "1.0", "whl", "py3-none-any", wheel("pkg.whl", "pkg", "1!1.0", "py3-none-any"));
 
-        WheelsMojo mojo = mojo();
+        DistributionsMojo mojo = mojo();
         mojo.execute();
 
         Properties properties = mavenProject.getProperties();
         assertEquals("pkg-1!1.0-py3-none-any.whl", properties.getProperty("python.wheel.pkg.file"));
         assertEquals("1!1.0", properties.getProperty("python.wheel.pkg.version"));
         assertFalse(properties.containsKey("python.wheel.pkg.rpmVersion"));
-        assertFalse(properties.containsKey("python.wheel.rpmVersion"));
+        assertFalse(properties.containsKey("python.distribution.rpmVersion"));
         assertEquals(List.of("Not setting python.wheel.pkg.rpmVersion: can't convert 1!1.0 to an RPM version.",
-                "Not setting python.wheel.rpmVersion: can't convert 1!1.0 to an RPM version."), log(mojo).warnings);
+                "Not setting python.distribution.rpmVersion: can't convert 1!1.0 to an RPM version."), log(mojo).warnings);
     }
 
     @ParameterizedTest
@@ -258,6 +286,97 @@ class WheelsMojoTest {
                 e.getMessage());
     }
 
+    @Test
+    void copiesASnapshotSdistUnderItsSdistNameAndSetsItsVersions() throws Exception {
+        Path file = sdist("example_package-1.0.0-SNAPSHOT.tar.gz", "example_package",
+                "1.0.0.dev20261109092818+feature.login");
+        dependency("example_package", "1.0.0-feature_login-SNAPSHOT", "tar.gz", null, file);
+
+        DistributionsMojo mojo = mojo();
+        mojo.execute();
+
+        String name = "example_package-1.0.0.dev20261109092818+feature.login.tar.gz";
+        assertArrayEquals(Files.readAllBytes(file), Files.readAllBytes(output().resolve(name)));
+        Properties properties = mavenProject.getProperties();
+        assertEquals(name, properties.getProperty("python.sdist.example_package.file"));
+        assertEquals("1.0.0.dev20261109092818+feature.login",
+                properties.getProperty("python.sdist.example_package.version"));
+        assertEquals("1.0.0~~dev20261109092818+feature.login",
+                properties.getProperty("python.sdist.example_package.rpmVersion"));
+        assertEquals(name, properties.getProperty("python.distribution.file"));
+        assertEquals(6, properties.size());
+        assertEquals(List.of("Copied com.example:example_package:tar.gz:1.0.0-feature_login-SNAPSHOT as " + name),
+                log(mojo).info);
+    }
+
+    @Test
+    void readsAnSdistWithALongPathAndANonNormalizedName() throws Exception {
+        String top = "Example.Package-1.0.0.dev20261109092818+feature.a.very.long.branch.name.that.goes.on.and.on/";
+        dependency("example_package", "1.0.0-SNAPSHOT", "tar.gz", null, sdist("pkg.tar.gz", Map.of(
+                top + "PKG-INFO", "Name: Example.Package\nVersion: 1.0.0.dev20261109092818\n")));
+
+        mojo().execute();
+
+        assertTrue(Files.isRegularFile(output().resolve("example_package-1.0.0.dev20261109092818.tar.gz")));
+    }
+
+    @Test
+    void takesTheMainArtifactOfAPythonProjectAsAnSdist() throws Exception {
+        dependency("example_package", "1.0.0", "python", null,
+                sdist("example_package-1.0.0.tar.gz", "example_package", "1.0.0"));
+
+        mojo().execute();
+
+        assertEquals("example_package-1.0.0.tar.gz",
+                mavenProject.getProperties().getProperty("python.sdist.example_package.file"));
+    }
+
+    @Test
+    void setsPropertiesForAWheelAndAnSdistOfOneArtifactButNoNeutralOnes() throws Exception {
+        dependency("example_package", "1.0.0", "whl", "py3-none-any",
+                wheel("a.whl", "example_package", "1.0.0", "py3-none-any"));
+        dependency("example_package", "1.0.0", "tar.gz", null,
+                sdist("b.tar.gz", "example_package", "1.0.0"));
+
+        mojo().execute();
+
+        Properties properties = mavenProject.getProperties();
+        assertEquals("example_package-1.0.0-py3-none-any.whl",
+                properties.getProperty("python.wheel.example_package.file"));
+        assertEquals("example_package-1.0.0.tar.gz", properties.getProperty("python.sdist.example_package.file"));
+        assertFalse(properties.containsKey("python.distribution.file"));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"no-pkg-info", "nested-pkg-info", "no-version"})
+    void failsOnATarballThatIsntAnSdist(String broken) throws Exception {
+        Map<String, String> entries;
+        switch (broken) {
+            case "no-pkg-info":
+                entries = Map.of("pkg-1.0/pyproject.toml", "");
+                break;
+            case "nested-pkg-info":
+                entries = Map.of("pkg-1.0/src/pkg.egg-info/PKG-INFO", "Name: pkg\nVersion: 1.0\n");
+                break;
+            default:
+                entries = Map.of("pkg-1.0/PKG-INFO", "Name: pkg\n");
+        }
+        dependency("pkg", "1.0", "tar.gz", null, sdist("pkg.tar.gz", entries));
+
+        MojoExecutionException e = assertThrows(MojoExecutionException.class, () -> mojo().execute());
+
+        assertTrue(e.getMessage().startsWith("com.example:pkg:tar.gz:1.0 is not a valid sdist"), e.getMessage());
+    }
+
+    @Test
+    void failsOnAnSdistThatIsntGzipped() throws Exception {
+        dependency("pkg", "1.0", "tar.gz", null, Files.writeString(project.resolve("pkg.tar.gz"), "not gzip"));
+
+        MojoExecutionException e = assertThrows(MojoExecutionException.class, () -> mojo().execute());
+
+        assertTrue(e.getMessage().startsWith("Failed to read the sdist com.example:pkg:tar.gz:1.0"), e.getMessage());
+    }
+
     @ParameterizedTest
     @CsvSource({
             "1.0.0, 1.0.0",
@@ -271,12 +390,12 @@ class WheelsMojoTest {
             "1.0+Local.7, 1.0+local.7",
     })
     void convertsPep440ToRpmVersions(String pep440, String rpm) {
-        assertEquals(Optional.of(rpm), WheelsMojo.rpmVersion(pep440));
+        assertEquals(Optional.of(rpm), DistributionsMojo.rpmVersion(pep440));
     }
 
     @ParameterizedTest
     @ValueSource(strings = {"1!2.0", "1.0-SNAPSHOT", "1.0.0.dev", "latest"})
     void cantConvertWhatIsntANormalizedPep440VersionWithoutAnEpoch(String version) {
-        assertEquals(Optional.empty(), WheelsMojo.rpmVersion(version));
+        assertEquals(Optional.empty(), DistributionsMojo.rpmVersion(version));
     }
 }

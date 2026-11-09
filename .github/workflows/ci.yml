@@ -52,7 +52,9 @@ jobs:
 
     steps:
       - name: Install the RPM build tools
-        run: dnf install -y git maven rpm-build python3-devel pyproject-rpm-macros python3-pip
+        run: >
+          dnf install -y git maven rpm-build python3-devel pyproject-rpm-macros python3-pip
+          python3-packaging python3-hatchling python3-hatch-vcs
 
       - name: Checkout
         uses: actions/checkout@v7.0.1
@@ -83,6 +85,15 @@ jobs:
           [[ $version == 1.0.0~~dev* ]] || { echo "Unexpected RPM version $version"; exit 1; }
           [[ $(rpm --eval "%{lua: print(rpm.vercmp('$version', '1.0.0'))}") == -1 ]] || { echo "$version doesn't sort before 1.0.0"; exit 1; }
           cd / && python3 -c "import example_package, importlib.metadata as m; print(example_package.__file__, m.version('example_package'))"
+
+      - name: Build the RPM from the sdist, and install it in place of the wheel's
+        run: |
+          mvn -B -f example_rpm_sdist/pom.xml install
+          dnf remove -y python3-example-package
+          dnf install -y example_rpm_sdist/target/rpmbuild/RPMS/example-rpm-sdist.rpm
+          version=$(rpm -q --qf '%{VERSION}' python3-example-package)
+          [[ $version == 1.0.0~~dev* ]] || { echo "Unexpected RPM version $version"; exit 1; }
+          cd / && python3 -c "import example_package, importlib.metadata as m; v = m.version('example_package'); print(example_package.__file__, v); assert v == '${version/\~\~/.}', v"
 
       - name: Build the example package and the RPM on a feature branch
         run: |

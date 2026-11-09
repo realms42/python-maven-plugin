@@ -46,13 +46,13 @@ class PluginWiringTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"build", "test", "package", "lint", "format", "publish", "wheels"})
+    @ValueSource(strings = {"build", "test", "package", "lint", "format", "publish", "distributions"})
     void goalIsThreadSafe(String goal) throws Exception {
         assertEquals("true", child(mojo(goal), "threadSafe").getTextContent());
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"build", "test", "package", "lint", "format", "publish", "wheels"})
+    @ValueSource(strings = {"build", "test", "package", "lint", "format", "publish", "distributions"})
     void goalAndEveryParameterAUserCanSetAreDocumented(String goal) throws Exception {
         Element mojo = mojo(goal);
         assertFalse(child(mojo, "description").getTextContent().isBlank(), goal + " has no description");
@@ -72,7 +72,7 @@ class PluginWiringTest {
             "lint, verify",
             "format, verify",
             "publish, deploy",
-            "wheels, generate-resources",
+            "distributions, generate-resources",
     })
     void goalDefaultsToItsPhase(String goal, String phase) throws Exception {
         assertEquals(phase, child(mojo(goal), "phase").getTextContent());
@@ -81,7 +81,7 @@ class PluginWiringTest {
     @ParameterizedTest
     @CsvSource({
             "lint, true", "format, true",
-            "build, false", "test, false", "package, false", "publish, false", "wheels, false",
+            "build, false", "test, false", "package, false", "publish, false", "distributions, false",
     })
     void onlyTheRuffGoalsTakeTheRuffParameters(String goal, boolean ruff) throws Exception {
         for (String name : List.of("ruffVersion", "ruffSettings")) {
@@ -121,7 +121,7 @@ class PluginWiringTest {
             "publish, skipPublish, python.publish.skip",
             "publish, skipReleases, python.publish.skipReleases",
             "publish, skipSnapshots, python.publish.skipSnapshots",
-            "wheels, outputDirectory, python.wheels.outputDirectory",
+            "distributions, outputDirectory, python.distributions.outputDirectory",
     })
     void parameterIsSetByItsUserProperty(String goal, String parameter, String property) throws Exception {
         assertEquals("${" + property + "}", child(child(mojo(goal), "configuration"), parameter).getTextContent());

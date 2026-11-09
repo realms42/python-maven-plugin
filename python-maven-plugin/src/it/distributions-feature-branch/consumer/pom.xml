@@ -13,6 +13,12 @@
       <type>whl</type>
       <classifier>py3-none-any</classifier>
     </dependency>
+    <dependency>
+      <groupId>it</groupId>
+      <artifactId>it_pkg</artifactId>
+      <version>1.0.0-feature_login-SNAPSHOT</version>
+      <type>tar.gz</type>
+    </dependency>
   </dependencies>
   <build>
     <plugins>
@@ -23,7 +29,7 @@
         <executions>
           <execution>
             <goals>
-              <goal>wheels</goal>
+              <goal>distributions</goal>
             </goals>
           </execution>
         </executions>
@@ -40,9 +46,11 @@
             </goals>
             <configuration>
               <target>
-                <echo message="file=${python.wheel.it_pkg.file}"/>
-                <echo message="version=${python.wheel.it_pkg.version}"/>
-                <echo message="rpmVersion=${python.wheel.it_pkg.rpmVersion}"/>
+                <echo message="wheel.file=${python.wheel.it_pkg.file}"/>
+                <echo message="wheel.version=${python.wheel.it_pkg.version}"/>
+                <echo message="wheel.rpmVersion=${python.wheel.it_pkg.rpmVersion}"/>
+                <echo message="sdist.file=${python.sdist.it_pkg.file}"/>
+                <echo message="sdist.rpmVersion=${python.sdist.it_pkg.rpmVersion}"/>
               </target>
             </configuration>
           </execution>

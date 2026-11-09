@@ -97,9 +97,9 @@
                         <artifactId>python-maven-plugin</artifactId>
                         <executions>
                             <execution>
-                                <id>wheel-to-sources</id>
+                                <id>distribution-to-sources</id>
                                 <goals>
-                                    <goal>wheels</goal>
+                                    <goal>distributions</goal>
                                 </goals>
                                 <configuration>
                                     <outputDirectory>${rpm.topdir}/SOURCES</outputDirectory>
@@ -126,11 +126,13 @@
                                         <argument>--define</argument>
                                         <argument>_rpmfilename ${project.artifactId}.rpm</argument>
                                         <argument>--define</argument>
-                                        <argument>wheel_version ${python.wheel.rpmVersion}</argument>
+                                        <argument>dist_version ${python.distribution.version}</argument>
+                                        <argument>--define</argument>
+                                        <argument>dist_rpm_version ${python.distribution.rpmVersion}</argument>
                                         <argument>--define</argument>
                                         <argument>rpm_release ${rpm.release}</argument>
                                         <argument>--define</argument>
-                                        <argument>wheel_file ${python.wheel.file}</argument>
+                                        <argument>dist_file ${python.distribution.file}</argument>
                                         <argument>${project.basedir}/package.spec</argument>
                                     </arguments>
                                 </configuration>
@@ -182,9 +184,9 @@
                         <artifactId>python-maven-plugin</artifactId>
                         <executions>
                             <execution>
-                                <id>wheel-to-context</id>
+                                <id>distribution-to-context</id>
                                 <goals>
-                                    <goal>wheels</goal>
+                                    <goal>distributions</goal>
                                 </goals>
                                 <configuration>
                                     <outputDirectory>${container.context}</outputDirectory>
@@ -209,7 +211,7 @@
                                         <argument>--file</argument>
                                         <argument>${project.basedir}/Containerfile</argument>
                                         <argument>--build-arg</argument>
-                                        <argument>WHEEL=${python.wheel.file}</argument>
+                                        <argument>WHEEL=${python.distribution.file}</argument>
                                         <argument>--tag</argument>
                                         <argument>${container.image}</argument>
                                         <argument>${container.context}</argument>

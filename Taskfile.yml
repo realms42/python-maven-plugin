@@ -7,6 +7,7 @@ vars:
   PARENT_DIR: example_parent
   EXAMPLE_DIR: example_package
   RPM_DIR: example_rpm
+  RPM_SDIST_DIR: example_rpm_sdist
   CONTAINER_DIR: example_container
   MVN: mvn -B
   IMAGE: python-maven-plugin:latest
@@ -72,6 +73,13 @@ tasks:
     cmds:
       - '{{.MVN}} install {{.CLI_ARGS}}'
 
+  rpm-sdist:
+    desc: Build the RPM from the installed example sdist, building the wheel in rpmbuild (needs rpmbuild, pyproject-rpm-macros, hatchling and hatch-vcs)
+    deps: [example]
+    dir: '{{.RPM_SDIST_DIR}}'
+    cmds:
+      - '{{.MVN}} install {{.CLI_ARGS}}'
+
   container:
     desc: Build a container image with the installed example wheel in a venv (needs docker)
     deps: [example]
@@ -105,6 +113,7 @@ tasks:
       - '{{.MVN}} -f {{.PARENT_DIR}}/pom.xml clean'
       - '{{.MVN}} -f {{.EXAMPLE_DIR}}/pom.xml clean'
       - '{{.MVN}} -f {{.RPM_DIR}}/pom.xml clean'
+      - '{{.MVN}} -f {{.RPM_SDIST_DIR}}/pom.xml clean'
       - '{{.MVN}} -f {{.CONTAINER_DIR}}/pom.xml clean'
 
   all:

@@ -1,12 +1,12 @@
 %global srcname example_package
 
 Name:           python3-example-package
-Version:        %{wheel_version}
+Version:        %{dist_rpm_version}
 Release:        %{rpm_release}%{?dist}
 Summary:        Example package built by python-maven-plugin
 License:        GPL-3.0-only
 URL:            https://github.com/realms42/python-maven-plugin
-Source0:        %{wheel_file}
+Source0:        %{dist_file}
 BuildArch:      noarch
 
 BuildRequires:  python3-devel
