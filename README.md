@@ -381,7 +381,7 @@ image leave it out.
 
 `example_container/` installs the example's wheel into a virtual environment in a container image. Like the RPM
 example, its POM only inherits `example_parent` and takes the wheel as a Maven dependency. The parent's
-`container` profile, active in any project with a `src/main/container/Containerfile`, does the rest:
+`container` profile, active in any project with a `Containerfile` at its root, does the rest:
 
 1. `wheels` copies the wheel into `target/container/`, the build context.
 2. `exec-maven-plugin` runs `docker build` on the Containerfile, passing the wheel's file name as the `WHEEL` build

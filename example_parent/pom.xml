@@ -152,7 +152,7 @@
             <id>container</id>
             <activation>
                 <file>
-                    <exists>${basedir}/src/main/container/Containerfile</exists>
+                    <exists>${basedir}/Containerfile</exists>
                 </file>
             </activation>
             <properties>
@@ -194,7 +194,7 @@
                                     <arguments>
                                         <argument>build</argument>
                                         <argument>--file</argument>
-                                        <argument>${project.basedir}/src/main/container/Containerfile</argument>
+                                        <argument>${project.basedir}/Containerfile</argument>
                                         <argument>--build-arg</argument>
                                         <argument>WHEEL=${python.wheel.file}</argument>
                                         <argument>--tag</argument>
