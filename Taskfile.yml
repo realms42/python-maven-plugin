@@ -54,6 +54,13 @@ tasks:
     cmds:
       - '{{.MVN}} install'
 
+  rpm:
+    desc: Build the example package and its RPM (needs rpmbuild and pyproject-rpm-macros)
+    deps: [build]
+    dir: '{{.PARENT_DIR}}'
+    cmds:
+      - '{{.MVN}} install -Prpm'
+
   lint:
     desc: Lint the example package via the plugin's lint goal
     deps: [build]

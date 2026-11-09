@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Packages example_package's wheel as an RPM. Needs rpmbuild and Fedora's pyproject-rpm-macros. -->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>com.github.realms42</groupId>
+    <artifactId>example-rpm</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+    <packaging>pom</packaging>
+
+    <name>Example Python RPM</name>
+    <description>example_package's wheel, packaged as an RPM</description>
+
+    <properties>
+        <rpm.topdir>${project.build.directory}/rpmbuild</rpm.topdir>
+        <rpm.name>python3-example-package</rpm.name>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.github.realms42</groupId>
+            <artifactId>example_package</artifactId>
+            <version>1.0.0-SNAPSHOT</version>
+            <type>whl</type>
+            <classifier>py3-none-any</classifier>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <version>3.9.0</version>
+                <executions>
+                    <execution>
+                        <id>wheel-to-sources</id>
+                        <phase>generate-resources</phase>
+                        <goals>
+                            <goal>copy-dependencies</goal>
+                        </goals>
+                        <configuration>
+                            <includeTypes>whl</includeTypes>
+                            <stripVersion>true</stripVersion>
+                            <outputDirectory>${rpm.topdir}/SOURCES</outputDirectory>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-resources-plugin</artifactId>
+                <version>3.5.0</version>
+                <executions>
+                    <execution>
+                        <id>helper-to-sources</id>
+                        <phase>generate-resources</phase>
+                        <goals>
+                            <goal>copy-resources</goal>
+                        </goals>
+                        <configuration>
+                            <outputDirectory>${rpm.topdir}/SOURCES</outputDirectory>
+                            <resources>
+                                <resource>
+                                    <directory>src/main/rpm</directory>
+                                    <includes>
+                                        <include>wheel_info.py</include>
+                                    </includes>
+                                </resource>
+                            </resources>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <version>3.6.4</version>
+                <executions>
+                    <execution>
+                        <id>rpmbuild</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>exec</goal>
+                        </goals>
+                        <configuration>
+                            <executable>rpmbuild</executable>
+                            <arguments>
+                                <argument>-bb</argument>
+                                <argument>--define</argument>
+                                <argument>_topdir ${rpm.topdir}</argument>
+                                <argument>--define</argument>
+                                <argument>_rpmfilename ${rpm.name}.rpm</argument>
+                                <argument>${project.basedir}/src/main/rpm/${rpm.name}.spec</argument>
+                            </arguments>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>build-helper-maven-plugin</artifactId>
+                <version>3.6.2</version>
+                <executions>
+                    <execution>
+                        <id>attach-rpm</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>attach-artifact</goal>
+                        </goals>
+                        <configuration>
+                            <artifacts>
+                                <artifact>
+                                    <file>${rpm.topdir}/RPMS/${rpm.name}.rpm</file>
+                                    <type>rpm</type>
+                                </artifact>
+                            </artifacts>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>

@@ -31,3 +31,32 @@ jobs:
 
       - name: Build and test the plugin, then build the example package
         run: task all
+
+  rpm:
+    runs-on: ubuntu-latest
+    container: fedora:43
+
+    steps:
+      - name: Install the RPM build tools
+        run: dnf install -y git maven rpm-build python3-devel pyproject-rpm-macros python3-pip
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Trust the checkout
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+
+      - name: Build the plugin
+        run: mvn -B -f python-maven-plugin/pom.xml install -Dmaven.test.skip=true -Dinvoker.skip
+
+      - name: Build the example and its RPM
+        run: mvn -B -f example_parent/pom.xml install -Prpm
+
+      - name: Install the RPM and import the package from it
+        run: |
+          dnf install -y example_rpm/target/rpmbuild/RPMS/python3-example-package.rpm
+          rpm -qil python3-example-package
+          cd / && python3 -c "import example_package, importlib.metadata as m; print(example_package.__file__, m.version('example_package'))"

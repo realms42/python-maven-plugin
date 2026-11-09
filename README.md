@@ -276,6 +276,23 @@ own deploy step runs first in that phase and fails, as there is no `<distributio
 stops before publishing; `mvn python:publish` publishes to TestPyPI, with credentials for the `testpypi` server.
 Files on TestPyPI are public, so a real setup points the repositories at its own index.
 
+## Building an RPM
+
+`example_rpm/` packages the example's wheel as an RPM. It takes the wheel as an ordinary Maven dependency
+(`<type>whl</type>`, `<classifier>py3-none-any</classifier>`), runs `rpmbuild` on
+`src/main/rpm/python3-example-package.spec`, and attaches the RPM to the build as an artifact of type `rpm`.
+
+The spec installs the wheel as it is, without rebuilding it, using Fedora's Python macros rather than hard-coded
+paths: `%pyproject_install` from `%{_pyproject_wheeldir}`, `%pyproject_save_files` for the file list,
+`%pyproject_check_import` as the check, and `%{python3}`. Maven stores the wheel under its Maven name, which pip
+won't install, so `wheel_info.py` reads the real file name and version from the wheel's metadata. The RPM version
+is the wheel's, with pre-releases written Fedora's way: `1.0.0.dev20261109092243` becomes
+`1.0.0~dev20261109092243`.
+
+It needs `rpm-build`, `python3-devel`, `pyproject-rpm-macros` and `python3-pip`, as on Fedora, so it is only
+built with the `rpm` profile: `task rpm`, or `mvn install -Prpm` in `example_parent/`. CI builds it in a Fedora
+container, installs the RPM and imports the package from it.
+
 ## Configuring many projects from a parent POM
 
 Everything the plugin applies to a project is a Maven parameter, so one parent POM can configure every project
