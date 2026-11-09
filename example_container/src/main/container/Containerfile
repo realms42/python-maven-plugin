@@ -6,4 +6,6 @@ RUN --mount=type=bind,source=${WHEEL},target=/tmp/${WHEEL} \
     python -m venv /opt/venv \
     && /opt/venv/bin/pip install --no-cache-dir /tmp/${WHEEL}
 
-ENV PATH=/opt/venv/bin:$PATH
+# What the venv's activate script does: VIRTUAL_ENV names it, and its bin comes first on the PATH.
+ENV VIRTUAL_ENV=/opt/venv
+ENV PATH=$VIRTUAL_ENV/bin:$PATH

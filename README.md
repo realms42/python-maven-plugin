@@ -388,7 +388,9 @@ example, its POM only inherits `example_parent` and takes the wheel as a Maven d
    argument, and tags the image `example-container:1.0.0-SNAPSHOT` (`container.image`, by default the project's
    artifactId and version).
 
-The Containerfile creates `/opt/venv`, installs the wheel into it with pip, and puts the venv first on the `PATH`.
+The Containerfile creates `/opt/venv`, installs the wheel into it with pip, and activates it for everything that
+runs in the image, as the venv's `activate` script would: `VIRTUAL_ENV` is set to `/opt/venv`, and its `bin`
+comes first on the `PATH`, so `python`, `pip` and any console scripts the wheel installs are the venv's.
 The wheel is mounted for the install rather than copied, so it isn't left in the image. `container.engine=podman`
 builds with podman instead of docker, and the `PYTHON_IMAGE` build argument chooses the base image
 (`python:3.13-slim`). The image is built in `package` and not pushed anywhere: pushing it to a registry is up to

@@ -35,11 +35,12 @@ jobs:
       - name: Build the container image
         run: mvn -B -f example_container/pom.xml install
 
-      - name: Import the package from the image's venv
+      - name: Check the image's venv is active, and import the package from it
         run: >
           docker run --rm example-container:1.0.0-SNAPSHOT python -c
-          "import example_package, importlib.metadata as m;
-          print(example_package.__file__, m.version('example_package'));
+          "import os, sys, example_package, importlib.metadata as m;
+          print(sys.prefix, example_package.__file__, m.version('example_package'));
+          assert sys.prefix == os.environ['VIRTUAL_ENV'] == '/opt/venv', sys.prefix;
           assert example_package.__file__.startswith('/opt/venv/')"
 
   rpm:
