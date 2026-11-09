@@ -155,7 +155,6 @@
   </build>
 
   <profiles>
-    <!-- Used by release:perform: see "Releasing the plugin" in the README. -->
     <profile>
       <id>release</id>
       <properties>

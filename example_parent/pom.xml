@@ -1,5 +1,4 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- An example parent POM: the plugin and its configuration, shared by the Python, RPM and container projects below it. -->
 <project xmlns="http://maven.apache.org/POM/4.0.0"
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
     xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
@@ -65,7 +64,6 @@
     </build>
 
     <profiles>
-        <!-- For projects with a spec in src/main/rpm: see "Building an RPM" in the README. -->
         <profile>
             <id>rpm</id>
             <activation>
@@ -150,7 +148,6 @@
             </build>
         </profile>
 
-        <!-- For projects with a Containerfile in src/main/container: see "Building a container image" in the README. -->
         <profile>
             <id>container</id>
             <activation>

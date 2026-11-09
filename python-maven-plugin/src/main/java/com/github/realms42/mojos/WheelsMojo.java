@@ -188,7 +188,6 @@ public class WheelsMojo extends BaseMojo {
             return found.iterator().next();
         }
 
-        // The header block of an email-style metadata file, as METADATA and WHEEL are.
         private static Map<String, List<String>> headers(ZipFile zip, String path) throws IOException {
             Map<String, List<String>> headers = new LinkedHashMap<>();
             ZipEntry entry = zip.getEntry(path);

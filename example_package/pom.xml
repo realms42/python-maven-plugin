@@ -8,7 +8,6 @@
         <groupId>com.github.realms42</groupId>
         <artifactId>example-parent</artifactId>
         <version>1.0.0-SNAPSHOT</version>
-        <!-- Resolved from the Maven repository, as from any other repository: install example_parent first. -->
         <relativePath/>
     </parent>
 

@@ -1,5 +1,4 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- Packages example_package's wheel as an RPM. Needs rpmbuild and Fedora's pyproject-rpm-macros. -->
 <project xmlns="http://maven.apache.org/POM/4.0.0"
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
     xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
@@ -9,7 +8,6 @@
         <groupId>com.github.realms42</groupId>
         <artifactId>example-parent</artifactId>
         <version>1.0.0-SNAPSHOT</version>
-        <!-- Resolved from the Maven repository, as from any other repository: install example_parent first. -->
         <relativePath/>
     </parent>
 

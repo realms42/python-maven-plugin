@@ -146,7 +146,6 @@ public abstract class BaseMojo extends AbstractMojo {
         }
     }
 
-    // The mapping is described in the README's Versioning section.
     protected String versionToPep440() throws MojoExecutionException {
         String v = version;
         boolean snapshot = v.regionMatches(true, Math.max(0, v.length() - SNAPSHOT.length()), SNAPSHOT, 0,
