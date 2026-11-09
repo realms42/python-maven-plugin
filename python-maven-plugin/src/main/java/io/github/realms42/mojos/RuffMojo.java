@@ -4,7 +4,6 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.TreeMap;
 
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.MojoFailureException;
@@ -25,16 +24,13 @@ public abstract class RuffMojo extends BaseMojo {
         List<String> command = new ArrayList<>(subcommand);
         command.add("--config");
         command.add(ruffExcludeBuildDir());
-        for (Map.Entry<String, String> setting : new TreeMap<>(ruffSettings == null ? Map.of() : ruffSettings)
-                .entrySet()) {
-            String key = setting.getKey().trim();
-            String value = setting.getValue() == null ? "" : setting.getValue().trim();
-            if (value.isEmpty()) {
-                throw new MojoExecutionException("The ruffSettings entry <" + key + "> has no value. Give it a"
-                        + " TOML value, such as 100, \"py311\" or [\"E\", \"F\"].");
+        for (Map.Entry<String, String> setting : settings(ruffSettings)) {
+            if (setting.getValue().isEmpty()) {
+                throw new MojoExecutionException("The ruffSettings entry <" + setting.getKey() + "> has no value."
+                        + " Give it a TOML value, such as 100, \"py311\" or [\"E\", \"F\"].");
             }
             command.add("--config");
-            command.add(key + " = " + value);
+            command.add(setting.getKey() + " = " + setting.getValue());
         }
         command.addAll(args);
         Path ruff = installTool(getToolsVenvPath(), "ruff", ruffVersion);

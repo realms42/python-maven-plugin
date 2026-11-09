@@ -5,17 +5,14 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
-import java.time.ZoneOffset;
-import java.time.format.DateTimeFormatter;
+import java.util.AbstractMap.SimpleImmutableEntry;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+import java.util.TreeMap;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -48,6 +45,13 @@ public abstract class BaseMojo extends AbstractMojo {
     @Parameter(defaultValue = "${session.request.startTime}", readonly = true)
     protected Date buildStartTime;
 
+    interface CommandRunner {
+        int run(String cmd, List<String> args, Map<String, String> env) throws MojoExecutionException;
+    }
+
+    // Where commands run; the tests replace it to record them.
+    CommandRunner commandRunner = this::runProcess;
+
     protected Path getPythonMavenPath() {
         return buildDir.toPath().resolve("python-maven-plugin");
     }
@@ -73,9 +77,26 @@ public abstract class BaseMojo extends AbstractMojo {
         }
     }
 
+    protected List<Path> built(String suffix) throws MojoExecutionException {
+        return builtDistributions().stream()
+                .filter(p -> p.getFileName().toString().endsWith(suffix))
+                .collect(Collectors.toList());
+    }
+
     protected boolean isSnapshot() {
-        return version.regionMatches(true, Math.max(0, version.length() - SNAPSHOT.length()), SNAPSHOT, 0,
-                SNAPSHOT.length());
+        return Versions.isSnapshot(version);
+    }
+
+    protected String versionToPep440() throws MojoExecutionException {
+        return Versions.toPep440(version, buildStartTime == null ? Instant.now() : buildStartTime.toInstant());
+    }
+
+    // A goal's name = value settings, sorted by name and trimmed, so that options come out in a stable order.
+    protected static List<Map.Entry<String, String>> settings(Map<String, String> settings) {
+        List<Map.Entry<String, String>> sorted = new ArrayList<>();
+        new TreeMap<>(settings == null ? Map.<String, String>of() : settings).forEach((name, value) ->
+                sorted.add(new SimpleImmutableEntry<>(name.trim(), value == null ? "" : value.trim())));
+        return sorted;
     }
 
     protected Map<String, String> uvEnvironment() {
@@ -112,9 +133,14 @@ public abstract class BaseMojo extends AbstractMojo {
         if (!Files.isDirectory(venv)) {
             run("uv", Arrays.asList("venv", venv.toString()), uvEnvironment());
         }
-        run("uv", Arrays.asList("pip", "install", "--python", venv.toString(), tool + "==" + version),
-                uvEnvironment());
+        pipInstall(venv, tool + "==" + version);
         return venvExecutable(venv, tool);
+    }
+
+    protected void pipInstall(Path venv, String... args) throws MojoExecutionException {
+        List<String> command = new ArrayList<>(Arrays.asList("pip", "install", "--python", venv.toString()));
+        command.addAll(Arrays.asList(args));
+        run("uv", command, uvEnvironment());
     }
 
     // ruff and pytest exit with 1 when the project fails the check, and with other codes when they can't run.
@@ -129,9 +155,13 @@ public abstract class BaseMojo extends AbstractMojo {
             throw new MojoFailureException(failure);
         }
         if (exitCode != 0) {
-            throw new MojoExecutionException(
-                    "`" + tool + "` failed with exit code " + exitCode + ". See the output above.");
+            throw commandFailed(tool, exitCode);
         }
+    }
+
+    private static MojoExecutionException commandFailed(String command, int exitCode) {
+        return new MojoExecutionException(
+                "`" + command + "` failed with exit code " + exitCode + ". See the output above.");
     }
 
     protected String ruffExcludeBuildDir() {
@@ -142,13 +172,16 @@ public abstract class BaseMojo extends AbstractMojo {
     protected void run(String cmd, List<String> args, Map<String, String> envOverrides) throws MojoExecutionException {
         int exitCode = exec(cmd, args, envOverrides);
         if (exitCode != 0) {
-            String name = args.isEmpty() ? cmd : cmd + " " + args.get(0);
-            throw new MojoExecutionException(
-                    "`" + name + "` failed with exit code " + exitCode + ". See the output above.");
+            throw commandFailed(args.isEmpty() ? cmd : cmd + " " + args.get(0), exitCode);
         }
     }
 
     protected int exec(String cmd, List<String> args, Map<String, String> envOverrides) throws MojoExecutionException {
+        return commandRunner.run(cmd, args, envOverrides);
+    }
+
+    private int runProcess(String cmd, List<String> args, Map<String, String> envOverrides)
+            throws MojoExecutionException {
         Commandline command = new Commandline();
         command.setExecutable(cmd);
         command.setWorkingDirectory(basePath);
@@ -166,53 +199,7 @@ public abstract class BaseMojo extends AbstractMojo {
         }
     }
 
-    protected String versionToPep440() throws MojoExecutionException {
-        String v = version;
-        boolean snapshot = isSnapshot();
-        if (snapshot) {
-            v = v.substring(0, v.length() - SNAPSHOT.length());
-        }
-        Matcher parts = MAVEN_VERSION.matcher(v);
-        if (!parts.matches()) {
-            throw new MojoExecutionException("Can't convert the Maven version " + version + " to a Python (PEP 440)"
-                    + " version: it must start with a numeric release, such as 1.0.0.");
-        }
-        StringBuilder pep440 = new StringBuilder(parts.group(1));
-        String qualifier = parts.group(2) == null ? "" : parts.group(2);
-        String local = "";
-        Matcher preRelease = PRE_RELEASE.matcher(qualifier);
-        if (preRelease.matches()) {
-            String label = preRelease.group(1).toLowerCase(Locale.ROOT);
-            pep440.append(label.startsWith("a") ? "a" : label.startsWith("b") ? "b" : "rc");
-            pep440.append(preRelease.group(2).isEmpty() ? "0" : preRelease.group(2));
-        } else if (MILESTONE.matcher(qualifier).matches()) {
-            throw new MojoExecutionException("Can't convert the Maven version " + version + " to a Python (PEP 440)"
-                    + " version: Python has no milestone releases. Use an alpha, beta or release candidate"
-                    + " instead, such as -alpha-1 or -rc-1.");
-        } else if (!RELEASE.matcher(qualifier).matches()) {
-            local = qualifier.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9]+", ".").replaceAll("^\\.|\\.$", "");
-        }
-        if (snapshot) {
-            Instant start = buildStartTime == null ? Instant.now() : buildStartTime.toInstant();
-            pep440.append(".dev").append(SNAPSHOT_TIMESTAMP.format(start));
-        }
-        if (!local.isEmpty()) {
-            pep440.append('+').append(local);
-        }
-        return pep440.toString();
-    }
-
     protected static final String WHEEL = ".whl";
     protected static final String SDIST = ".tar.gz";
-    private static final String SNAPSHOT = "-SNAPSHOT";
-    private static final DateTimeFormatter SNAPSHOT_TIMESTAMP =
-            DateTimeFormatter.ofPattern("yyyyMMddHHmmss").withZone(ZoneOffset.UTC);
-    private static final Pattern MAVEN_VERSION = Pattern.compile("(\\d+(?:\\.\\d+)*)(?:[.-](.+))?");
-    // As in Maven, `a` and `b` only count as alpha and beta when a number follows.
-    private static final Pattern PRE_RELEASE =
-            Pattern.compile("(alpha|beta|rc|cr|a(?=[.-]?\\d)|b(?=[.-]?\\d))[.-]?(\\d*)", Pattern.CASE_INSENSITIVE);
-    private static final Pattern MILESTONE =
-            Pattern.compile("(milestone[.-]?\\d*|m[.-]?\\d+)", Pattern.CASE_INSENSITIVE);
-    private static final Pattern RELEASE = Pattern.compile("release|final|ga", Pattern.CASE_INSENSITIVE);
 
 }

@@ -31,6 +31,11 @@ final class MojoTesting {
         return mojo;
     }
 
+    static <T extends BaseMojo> T configure(T mojo, Path project, String version, Commands commands) {
+        configure(mojo, project, version).commandRunner = commands::exec;
+        return mojo;
+    }
+
     static void set(Object target, String name, Object value) {
         for (Class<?> type = target.getClass(); type != null; type = type.getSuperclass()) {
             try {

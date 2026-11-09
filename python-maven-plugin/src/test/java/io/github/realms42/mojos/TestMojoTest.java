@@ -60,20 +60,18 @@ class TestMojoTest {
     }
 
     private TestMojo mojo() {
-        TestMojo mojo = configure(new TestMojo() {
-            @Override
-            protected int exec(String cmd, List<String> args, Map<String, String> env) {
-                int exitCode = commands.exec(cmd, args, env);
-                if (exitCode == 0 && args.get(0).equals("sync")) {
-                    try {
-                        Files.createDirectories(venv());
-                    } catch (IOException e) {
-                        throw new UncheckedIOException(e);
-                    }
+        TestMojo mojo = configure(new TestMojo(), project, "1.2.0-SNAPSHOT");
+        mojo.commandRunner = (cmd, args, env) -> {
+            int exitCode = commands.exec(cmd, args, env);
+            if (exitCode == 0 && args.get(0).equals("sync")) {
+                try {
+                    Files.createDirectories(venv());
+                } catch (IOException e) {
+                    throw new UncheckedIOException(e);
                 }
-                return exitCode;
             }
-        }, project, "1.2.0-SNAPSHOT");
+            return exitCode;
+        };
         set(mojo, "pytestVersion", "9.2.0");
         set(mojo, "testWheel", true);
         return mojo;

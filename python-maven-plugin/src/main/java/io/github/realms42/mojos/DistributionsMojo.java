@@ -21,8 +21,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.ZipEntry;
@@ -106,7 +104,7 @@ public class DistributionsMojo extends BaseMojo {
         Properties properties = project.getProperties();
         properties.setProperty(prefix + "file", distribution.fileName());
         properties.setProperty(prefix + "version", distribution.version());
-        Optional<String> rpmVersion = rpmVersion(distribution.version());
+        Optional<String> rpmVersion = Versions.toRpm(distribution.version());
         if (rpmVersion.isPresent()) {
             properties.setProperty(prefix + "rpmVersion", rpmVersion.get());
         } else {
@@ -114,37 +112,6 @@ public class DistributionsMojo extends BaseMojo {
                     + " to an RPM version.");
         }
     }
-
-    // PEP 440 to RPM, as Fedora's Python packaging writes it: ~ for pre-releases, ~~ for a dev release of a final
-    // release, so that it sorts before its pre-releases too, and ^ for post-releases.
-    static Optional<String> rpmVersion(String pep440) {
-        Matcher v = PEP_440.matcher(pep440);
-        if (!v.matches() || v.group(1) != null) {
-            return Optional.empty();
-        }
-        StringBuilder rpm = new StringBuilder(v.group(2));
-        boolean suffixed = false;
-        if (v.group(3) != null) {
-            rpm.append('~').append(v.group(3).toLowerCase(Locale.ROOT)).append(v.group(4));
-            suffixed = true;
-        }
-        if (v.group(5) != null) {
-            rpm.append("^post").append(v.group(5));
-            suffixed = true;
-        }
-        if (v.group(6) != null) {
-            rpm.append(suffixed ? "~dev" : "~~dev").append(v.group(6));
-        }
-        if (v.group(7) != null) {
-            rpm.append('+').append(v.group(7).toLowerCase(Locale.ROOT));
-        }
-        return Optional.of(rpm.toString());
-    }
-
-    private static final Pattern PEP_440 = Pattern.compile(
-            "(?:(\\d+)!)?(\\d+(?:\\.\\d+)*)(?:(a|b|rc)(\\d+))?(?:\\.post(\\d+))?(?:\\.dev(\\d+))?"
-                    + "(?:\\+([a-z0-9]+(?:\\.[a-z0-9]+)*))?",
-            Pattern.CASE_INSENSITIVE);
 
     interface Distribution {
         String kind();

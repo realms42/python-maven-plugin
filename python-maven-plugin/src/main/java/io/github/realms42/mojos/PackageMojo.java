@@ -4,7 +4,6 @@ import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugins.annotations.Component;
@@ -26,15 +25,14 @@ public class PackageMojo extends BaseMojo {
 
     @Override
     public void execute() throws MojoExecutionException {
-        List<Path> artifacts = builtDistributions();
-        project.getArtifact().setFile(soleSdist(artifacts).toFile());
+        project.getArtifact().setFile(soleSdist().toFile());
         getLog().info("Project artifact: " + project.getArtifact().getFile().getName());
 
-        attachWheels(matching(artifacts, WHEEL));
+        attachWheels(built(WHEEL));
     }
 
-    private Path soleSdist(List<Path> artifacts) throws MojoExecutionException {
-        List<Path> matches = matching(artifacts, SDIST);
+    private Path soleSdist() throws MojoExecutionException {
+        List<Path> matches = built(SDIST);
         if (matches.size() != 1) {
             throw new MojoExecutionException("Expected exactly one " + SDIST + " in " + getPythonBuildPath()
                     + ", found " + matches.size() + ". Maven can only publish one primary artifact.");
@@ -67,11 +65,5 @@ public class PackageMojo extends BaseMojo {
             return Optional.empty();
         }
         return Optional.of(String.join("-", Arrays.copyOfRange(fields, fields.length - 3, fields.length)));
-    }
-
-    private static List<Path> matching(List<Path> artifacts, String suffix) {
-        return artifacts.stream()
-                .filter(p -> p.getFileName().toString().endsWith(suffix))
-                .collect(Collectors.toList());
     }
 }

@@ -5,8 +5,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
-import java.util.TreeMap;
-import java.util.stream.Collectors;
 
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.MojoFailureException;
@@ -49,11 +47,9 @@ public class TestMojo extends BaseMojo {
             return;
         }
         List<String> args = new ArrayList<>();
-        for (Map.Entry<String, String> setting
-                : new TreeMap<>(pytestSettings == null ? Map.of() : pytestSettings).entrySet()) {
-            String value = setting.getValue() == null ? "" : setting.getValue().trim();
+        for (Map.Entry<String, String> setting : settings(pytestSettings)) {
             args.add("-o");
-            args.add(setting.getKey().trim() + "=" + value);
+            args.add(setting.getKey() + "=" + setting.getValue());
         }
         args.addAll(Arrays.asList(
                 "-o", "cache_dir=" + getPythonMavenPath().resolve("pytest-cache"),
@@ -64,8 +60,7 @@ public class TestMojo extends BaseMojo {
             Path wheel = builtWheel();
             uvSync("--no-install-project");
             pytest = installTool(getProjectVenvPath(), "pytest", pytestVersion);
-            run("uv", Arrays.asList("pip", "install", "--python", getProjectVenvPath().toString(), "--no-deps",
-                    "--reinstall", wheel.toString()), uvEnvironment());
+            pipInstall(getProjectVenvPath(), "--no-deps", "--reinstall", wheel.toString());
             getLog().info("Testing the built wheel: " + wheel.getFileName());
         } else {
             uvSync();
@@ -81,9 +76,7 @@ public class TestMojo extends BaseMojo {
     }
 
     private Path builtWheel() throws MojoExecutionException {
-        List<Path> wheels = builtDistributions().stream()
-                .filter(p -> p.getFileName().toString().endsWith(WHEEL))
-                .collect(Collectors.toList());
+        List<Path> wheels = built(WHEEL);
         if (wheels.size() != 1) {
             throw new MojoExecutionException("Expected exactly one wheel in " + getPythonBuildPath() + " to test,"
                     + " found " + wheels.size() + ". Run the build goal first, or test the source tree with"

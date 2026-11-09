@@ -26,12 +26,7 @@ class FormatMojoTest {
     private final Commands commands = new Commands();
 
     private FormatMojo mojo() {
-        FormatMojo mojo = configure(new FormatMojo() {
-            @Override
-            protected int exec(String cmd, List<String> args, Map<String, String> env) {
-                return commands.exec(cmd, args, env);
-            }
-        }, project, "1.0.0");
+        FormatMojo mojo = configure(new FormatMojo(), project, "1.0.0", commands);
         set(mojo, "ruffVersion", "0.17.3");
         return mojo;
     }
