@@ -103,6 +103,11 @@ class WheelsMojoTest {
                 properties.getProperty("python.wheel.example_package.file"));
         assertEquals("1.0.0.dev20261109092818", properties.getProperty("python.wheel.example_package.version"));
         assertEquals("1.0.0~~dev20261109092818", properties.getProperty("python.wheel.example_package.rpmVersion"));
+        assertEquals(properties.getProperty("python.wheel.example_package.file"),
+                properties.getProperty("python.wheel.file"));
+        assertEquals("1.0.0.dev20261109092818", properties.getProperty("python.wheel.version"));
+        assertEquals("1.0.0~~dev20261109092818", properties.getProperty("python.wheel.rpmVersion"));
+        assertEquals(6, properties.size());
         assertEquals(List.of("Copied com.example:example_package:whl:py3-none-any:1.0.0-SNAPSHOT as"
                 + " example_package-1.0.0.dev20261109092818-py3-none-any.whl"), log(mojo).info);
     }
@@ -169,6 +174,20 @@ class WheelsMojoTest {
     }
 
     @Test
+    void setsTheWheelNeutralPropertiesOnlyWhenThereIsOneWheel() throws Exception {
+        dependency("first", "1.0", "whl", "py3-none-any", wheel("first.whl", "first", "1.0", "py3-none-any"));
+        dependency("second", "2.0", "whl", "py3-none-any", wheel("second.whl", "second", "2.0", "py3-none-any"));
+
+        mojo().execute();
+
+        Properties properties = mavenProject.getProperties();
+        assertEquals("first-1.0-py3-none-any.whl", properties.getProperty("python.wheel.first.file"));
+        assertEquals("second-2.0-py3-none-any.whl", properties.getProperty("python.wheel.second.file"));
+        assertFalse(properties.containsKey("python.wheel.file"));
+        assertEquals(6, properties.size());
+    }
+
+    @Test
     void copiesEveryWheelOfAnArtifactButSetsNoPropertiesWhenThereAreSeveral() throws Exception {
         dependency("native", "1.0", "whl", "cp312-cp312-linux_x86_64",
                 wheel("a.whl", "native", "1.0", "cp312-cp312-linux_x86_64"));
@@ -196,8 +215,9 @@ class WheelsMojoTest {
         assertEquals("pkg-1!1.0-py3-none-any.whl", properties.getProperty("python.wheel.pkg.file"));
         assertEquals("1!1.0", properties.getProperty("python.wheel.pkg.version"));
         assertFalse(properties.containsKey("python.wheel.pkg.rpmVersion"));
-        assertEquals(List.of("Not setting python.wheel.pkg.rpmVersion: can't convert 1!1.0 to an RPM version."),
-                log(mojo).warnings);
+        assertFalse(properties.containsKey("python.wheel.rpmVersion"));
+        assertEquals(List.of("Not setting python.wheel.pkg.rpmVersion: can't convert 1!1.0 to an RPM version.",
+                "Not setting python.wheel.rpmVersion: can't convert 1!1.0 to an RPM version."), log(mojo).warnings);
     }
 
     @ParameterizedTest

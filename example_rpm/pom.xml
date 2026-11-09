@@ -5,7 +5,14 @@
     xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>com.github.realms42</groupId>
+    <parent>
+        <groupId>com.github.realms42</groupId>
+        <artifactId>example-parent</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+        <!-- Resolved from the Maven repository, as from any other repository: install example_parent first. -->
+        <relativePath/>
+    </parent>
+
     <artifactId>example-rpm</artifactId>
     <version>1.0.0-SNAPSHOT</version>
     <packaging>pom</packaging>
@@ -14,7 +21,6 @@
     <description>example_package's wheel, packaged as an RPM</description>
 
     <properties>
-        <rpm.topdir>${project.build.directory}/rpmbuild</rpm.topdir>
         <rpm.name>python3-example-package</rpm.name>
         <example.package.version>1.0.0-SNAPSHOT</example.package.version>
     </properties>
@@ -28,76 +34,4 @@
             <classifier>py3-none-any</classifier>
         </dependency>
     </dependencies>
-
-    <build>
-        <plugins>
-            <plugin>
-                <groupId>com.github.realms42</groupId>
-                <artifactId>python-maven-plugin</artifactId>
-                <version>1.0.0-SNAPSHOT</version>
-                <executions>
-                    <execution>
-                        <id>wheel-to-sources</id>
-                        <goals>
-                            <goal>wheels</goal>
-                        </goals>
-                        <configuration>
-                            <outputDirectory>${rpm.topdir}/SOURCES</outputDirectory>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
-            <plugin>
-                <groupId>org.codehaus.mojo</groupId>
-                <artifactId>exec-maven-plugin</artifactId>
-                <version>3.6.4</version>
-                <executions>
-                    <execution>
-                        <id>rpmbuild</id>
-                        <phase>package</phase>
-                        <goals>
-                            <goal>exec</goal>
-                        </goals>
-                        <configuration>
-                            <executable>rpmbuild</executable>
-                            <arguments>
-                                <argument>-bb</argument>
-                                <argument>--define</argument>
-                                <argument>_topdir ${rpm.topdir}</argument>
-                                <argument>--define</argument>
-                                <argument>_rpmfilename ${rpm.name}.rpm</argument>
-                                <argument>--define</argument>
-                                <argument>wheel_version ${python.wheel.example_package.rpmVersion}</argument>
-                                <argument>--define</argument>
-                                <argument>wheel_file ${python.wheel.example_package.file}</argument>
-                                <argument>${project.basedir}/src/main/rpm/${rpm.name}.spec</argument>
-                            </arguments>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
-            <plugin>
-                <groupId>org.codehaus.mojo</groupId>
-                <artifactId>build-helper-maven-plugin</artifactId>
-                <version>3.6.2</version>
-                <executions>
-                    <execution>
-                        <id>attach-rpm</id>
-                        <phase>package</phase>
-                        <goals>
-                            <goal>attach-artifact</goal>
-                        </goals>
-                        <configuration>
-                            <artifacts>
-                                <artifact>
-                                    <file>${rpm.topdir}/RPMS/${rpm.name}.rpm</file>
-                                    <type>rpm</type>
-                                </artifact>
-                            </artifacts>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
-        </plugins>
-    </build>
 </project>

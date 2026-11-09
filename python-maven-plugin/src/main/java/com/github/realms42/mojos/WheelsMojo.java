@@ -35,7 +35,8 @@ import org.apache.maven.project.MavenProject;
 
 /**
  * Copies the project's wheel dependencies under their wheel file names, and sets {@code python.wheel.<artifactId>.file},
- * {@code .version} and {@code .rpmVersion} for the plugins that run after it.
+ * {@code .version} and {@code .rpmVersion} for the plugins that run after it, and {@code python.wheel.file},
+ * {@code .version} and {@code .rpmVersion} too when there is only one wheel.
  */
 @Mojo(name = "wheels", defaultPhase = LifecyclePhase.GENERATE_RESOURCES,
         requiresDependencyResolution = ResolutionScope.RUNTIME, threadSafe = true)
@@ -72,7 +73,6 @@ public class WheelsMojo extends BaseMojo {
         } catch (IOException e) {
             throw new MojoExecutionException("Failed to copy the wheels to " + output, e);
         }
-        Properties properties = project.getProperties();
         for (Map.Entry<String, List<Wheel>> entry : byArtifactId.entrySet()) {
             String prefix = "python.wheel." + entry.getKey() + ".";
             if (entry.getValue().size() > 1) {
@@ -80,16 +80,23 @@ public class WheelsMojo extends BaseMojo {
                         + " wheels of " + entry.getKey() + ".");
                 continue;
             }
-            Wheel wheel = entry.getValue().get(0);
-            properties.setProperty(prefix + "file", wheel.fileName());
-            properties.setProperty(prefix + "version", wheel.version);
-            Optional<String> rpmVersion = rpmVersion(wheel.version);
-            if (rpmVersion.isPresent()) {
-                properties.setProperty(prefix + "rpmVersion", rpmVersion.get());
-            } else {
-                getLog().warn("Not setting " + prefix + "rpmVersion: can't convert " + wheel.version
-                        + " to an RPM version.");
-            }
+            setProperties(prefix, entry.getValue().get(0));
+        }
+        if (artifacts.size() == 1) {
+            setProperties("python.wheel.", byArtifactId.values().iterator().next().get(0));
+        }
+    }
+
+    private void setProperties(String prefix, Wheel wheel) {
+        Properties properties = project.getProperties();
+        properties.setProperty(prefix + "file", wheel.fileName());
+        properties.setProperty(prefix + "version", wheel.version);
+        Optional<String> rpmVersion = rpmVersion(wheel.version);
+        if (rpmVersion.isPresent()) {
+            properties.setProperty(prefix + "rpmVersion", rpmVersion.get());
+        } else {
+            getLog().warn("Not setting " + prefix + "rpmVersion: can't convert " + wheel.version
+                    + " to an RPM version.");
         }
     }
 

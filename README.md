@@ -67,10 +67,11 @@ wheel into the local Maven repository.
 The examples are independent projects, as if each lived in its own repository, connected only through the Maven
 repository. Build them in order, each with `mvn install` (`task rpm` does all three):
 
-1. `example_parent/`: a parent POM holding the plugin and its configuration.
+1. `example_parent/`: a parent POM holding the plugin and its configuration, and the RPM build.
 2. `example_package/`: a Python package that only names and versions itself, and inherits the rest from the
    installed parent.
-3. `example_rpm/`: an RPM of the installed package's wheel (see [Building an RPM](#building-an-rpm)).
+3. `example_rpm/`: an RPM of the installed package's wheel, which only names its spec and the wheel, and inherits
+   the build from the parent (see [Building an RPM](#building-an-rpm)).
 
 ## The build
 
@@ -285,9 +286,18 @@ Files on TestPyPI are public, so a real setup points the repositories at its own
 
 ## Building an RPM
 
-`example_rpm/` packages the example's wheel as an RPM. It takes the wheel as an ordinary Maven dependency
-(`<type>whl</type>`, `<classifier>py3-none-any</classifier>`), runs `rpmbuild` on
-`src/main/rpm/python3-example-package.spec`, and attaches the RPM to the build as an artifact of type `rpm`.
+`example_rpm/` packages the example's wheel as an RPM. Its POM only inherits `example_parent`, names the spec
+(`rpm.name`, `python3-example-package`) and takes the wheel as an ordinary Maven dependency (`<type>whl</type>`,
+`<classifier>py3-none-any</classifier>`). The rest is the parent's `rpm` profile, which is active in any project
+with a `src/main/rpm/` directory:
+
+1. `wheels` copies the wheel into `target/rpmbuild/SOURCES`.
+2. `exec-maven-plugin` runs `rpmbuild` on `src/main/rpm/${rpm.name}.spec`, passing the wheel's file name and RPM
+   version as `wheel_file` and `wheel_version`.
+3. `build-helper-maven-plugin` attaches the RPM to the build as an artifact of type `rpm`.
+
+The profile also skips the inherited `publish` goal, so an RPM project never uploads to a package index. Maven
+resolves the wheel itself, without the plugin's extension: it takes the `whl` type as the file extension.
 
 The spec installs the wheel as it is, without rebuilding it, using Fedora's Python macros rather than hard-coded
 paths: `%pyproject_install` from `%{_pyproject_wheeldir}`, `%pyproject_save_files` for the file list,
@@ -305,6 +315,10 @@ metadata, copies it under its wheel file name, and sets these properties for the
 | `python.wheel.<artifactId>.file` | `example_package-1.0.0.dev20261109092818+feature.rpm-py3-none-any.whl` |
 | `python.wheel.<artifactId>.version` | `1.0.0.dev20261109092818+feature.rpm` |
 | `python.wheel.<artifactId>.rpmVersion` | `1.0.0~~dev20261109092818+feature.rpm` |
+
+When the project depends on one wheel only, it also sets `python.wheel.file`, `python.wheel.version` and
+`python.wheel.rpmVersion`, which a parent POM can use without knowing the wheel's artifactId, as the example's
+does.
 
 ```xml
 <plugin>
@@ -325,14 +339,13 @@ metadata, copies it under its wheel file name, and sets these properties for the
 ```
 
 It runs in `generate-resources`, and copies to `target/wheels/` unless `outputDirectory`
-(`python.wheels.outputDirectory`) says otherwise. The example passes the file and RPM version to `rpmbuild` as
-`wheel_file` and `wheel_version`. A project that depends on several wheels of one artifact, such as one per
+(`python.wheels.outputDirectory`) says otherwise. A project that depends on several wheels of one artifact, such as one per
 platform, gets them all copied but no properties for that artifact.
 
 The RPM version is written the way Fedora writes Python versions, so RPMs sort as the wheels do: `~` for a
 pre-release (`1.0.0~rc1`), `~~` for a dev release of a final release (`1.0.0~~dev…`, so that it sorts before
-the pre-releases too), `^` for a post-release (`1.0.0^post1`), and a local label kept after `+`. A version with an epoch (`1!2.0`) gets no
-`rpmVersion`, since RPM keeps the epoch in its own tag.
+the pre-releases too), `^` for a post-release (`1.0.0^post1`), and a local label kept after `+`. A version with
+an epoch (`1!2.0`) gets no `rpmVersion`, since RPM keeps the epoch in its own tag.
 
 ### Snapshots and feature branches
 
