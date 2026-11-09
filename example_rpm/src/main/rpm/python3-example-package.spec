@@ -6,7 +6,7 @@ Release:        1%{?dist}
 Summary:        Example package built by python-maven-plugin
 License:        GPL-3.0-only
 URL:            https://github.com/realms42/python-maven-plugin
-Source0:        %{srcname}-%{version}-py3-none-any.whl
+Source0:        %{wheel_file}
 BuildArch:      noarch
 
 BuildRequires:  python3-devel

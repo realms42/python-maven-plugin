@@ -70,8 +70,7 @@ repository. Build them in order, each with `mvn install` (`task rpm` does all th
 1. `example_parent/`: a parent POM holding the plugin and its configuration.
 2. `example_package/`: a Python package that only names and versions itself, and inherits the rest from the
    installed parent.
-3. `example_rpm/`: an RPM of a release of the package's wheel, so the package must be installed at a release
-   version first (see [Building an RPM](#building-an-rpm)).
+3. `example_rpm/`: an RPM of the installed package's wheel (see [Building an RPM](#building-an-rpm)).
 
 ## The build
 
@@ -86,7 +85,8 @@ repository. Build them in order, each with `mvn install` (`task rpm` does all th
 | verify | `format` | `ruff format --check`, never rewrites a file | `-Dpython.format.skip` |
 | install, deploy | Maven's install and deploy plugins | | |
 
-`publish`, which uploads to a Python package index, isn't bound; see [Publishing](#publishing).
+`publish`, which uploads to a Python package index, isn't bound; see [Publishing](#publishing). Nor is `wheels`,
+which is for projects that consume wheels; see [Building an RPM](#building-an-rpm).
 
 - **The build never modifies the project.** Every environment, cache and output goes under
   `target/python-maven-plugin/` and `target/python-build/`, and ruff never fixes or rewrites anything.
@@ -291,19 +291,75 @@ Files on TestPyPI are public, so a real setup points the repositories at its own
 
 The spec installs the wheel as it is, without rebuilding it, using Fedora's Python macros rather than hard-coded
 paths: `%pyproject_install` from `%{_pyproject_wheeldir}`, `%pyproject_save_files` for the file list,
-`%pyproject_check_import` as the check, and `%{python3}`. The wheel keeps its Maven file name,
-`example_package-1.0.0-py3-none-any.whl`, which is also its wheel name, and the RPM version is the Maven version.
+`%pyproject_check_import` as the check, and `%{python3}`.
 
-That holds for releases only, so the RPM project refuses snapshot dependencies (the enforcer's
-`requireReleaseDeps`). A snapshot's Maven name, `example_package-1.0.0-SNAPSHOT-py3-none-any.whl`, isn't a valid
-wheel name, and its wheel is versioned `1.0.0.dev<timestamp>`, which the name doesn't carry. A Maven qualifier, as
-in `1.0.0-rc1`, has the same problem.
+### The `wheels` goal
 
-It needs `rpm-build`, `python3-devel`, `pyproject-rpm-macros` and `python3-pip`, as on Fedora, and a release of the
-example's wheel in the Maven repository. `task rpm` builds the plugin and the parent, installs the example at
-version 1.0.0 in the local Maven repository (setting the version with `versions:set`, and reverting it after), and
-builds the RPM. CI does the same in a Fedora container, then installs the RPM and imports the package from it; the
-main CI job and the Docker image leave it out.
+A wheel's Maven file name is not its wheel file name: a snapshot's, `example_package-1.0.0-SNAPSHOT-py3-none-any.whl`,
+puts `SNAPSHOT` where a wheel name has its build number, so pip won't install it, and it doesn't carry the wheel's
+version, `1.0.0.dev<timestamp>`. The `wheels` goal reads the name, version and tags from each `whl` dependency's
+metadata, copies it under its wheel file name, and sets these properties for the plugins that run after it:
+
+| Property | Example |
+|---|---|
+| `python.wheel.<artifactId>.file` | `example_package-1.0.0.dev20261109092818+feature.rpm-py3-none-any.whl` |
+| `python.wheel.<artifactId>.version` | `1.0.0.dev20261109092818+feature.rpm` |
+| `python.wheel.<artifactId>.rpmVersion` | `1.0.0~~dev20261109092818+feature.rpm` |
+
+```xml
+<plugin>
+  <groupId>com.github.realms42</groupId>
+  <artifactId>python-maven-plugin</artifactId>
+  <version>1.0.0-SNAPSHOT</version>
+  <executions>
+    <execution>
+      <goals>
+        <goal>wheels</goal>
+      </goals>
+      <configuration>
+        <outputDirectory>${rpm.topdir}/SOURCES</outputDirectory>
+      </configuration>
+    </execution>
+  </executions>
+</plugin>
+```
+
+It runs in `generate-resources`, and copies to `target/wheels/` unless `outputDirectory`
+(`python.wheels.outputDirectory`) says otherwise. The example passes the file and RPM version to `rpmbuild` as
+`wheel_file` and `wheel_version`. A project that depends on several wheels of one artifact, such as one per
+platform, gets them all copied but no properties for that artifact.
+
+The RPM version is written the way Fedora writes Python versions, so RPMs sort as the wheels do: `~` for a
+pre-release (`1.0.0~rc1`), `~~` for a dev release of a final release (`1.0.0~~dev…`, so that it sorts before
+the pre-releases too), `^` for a post-release (`1.0.0^post1`), and a local label kept after `+`. A version with an epoch (`1!2.0`) gets no
+`rpmVersion`, since RPM keeps the epoch in its own tag.
+
+### Snapshots and feature branches
+
+The RPM can be built from a release, a snapshot or a feature-branch snapshot. `example.package.version` chooses
+which: `1.0.0-SNAPSHOT` by default, or for a gitflow feature branch,
+
+```bash
+mvn install -Dexample.package.version=1.0.0-feature_rpm-SNAPSHOT
+```
+
+which packages `example_package` `1.0.0.dev<timestamp>+feature.rpm` as `python3-example-package`
+`1.0.0~~dev<timestamp>+feature.rpm`. A later snapshot sorts after an earlier one, and every snapshot before the
+release. The release plugin refuses to
+release a project with snapshot dependencies, so a released RPM is always built from a released wheel.
+
+Separate repositories only see each other's snapshots through a Maven repository they share. On one machine that
+is the local repository, after `mvn install`; across machines, such as in CI, it takes a snapshot repository in the
+package's `<distributionManagement>` (Nexus, Artifactory, GitHub Packages), which the examples leave out, so `mvn
+deploy` has nowhere to deploy.
+
+### Building it
+
+It needs `rpm-build`, `python3-devel`, `pyproject-rpm-macros` and `python3-pip`, as on Fedora, and the example's
+wheel installed in the Maven repository: `task rpm` builds the plugin, parent, package and RPM in turn, and `task
+rpm -- -Dexample.package.version=…` another version. CI builds it in a Fedora container from a snapshot and then
+from a feature-branch snapshot, installs each RPM, and imports the package from it; the main CI job and the Docker
+image leave it out.
 
 ## Configuring many projects from a parent POM
 
