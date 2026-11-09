@@ -65,11 +65,13 @@ cache-keys = [{ file = "pyproject.toml" }, { git = { commit = true, tags = true 
 wheel into the local Maven repository.
 
 The examples are independent projects, as if each lived in its own repository, connected only through the Maven
-repository. Build them in order, each with `mvn install` (or `task rpm` for all of them):
+repository. Build them in order, each with `mvn install` (`task rpm` does all three):
 
 1. `example_parent/`: a parent POM holding the plugin and its configuration.
-2. `example_package/`: a Python package that only names itself and inherits the rest from the installed parent.
-3. `example_rpm/`: an RPM of the installed package's wheel (see [Building an RPM](#building-an-rpm)).
+2. `example_package/`: a Python package that only names and versions itself, and inherits the rest from the
+   installed parent.
+3. `example_rpm/`: an RPM of a release of the package's wheel, so the package must be installed at a release
+   version first (see [Building an RPM](#building-an-rpm)).
 
 ## The build
 
@@ -289,15 +291,19 @@ Files on TestPyPI are public, so a real setup points the repositories at its own
 
 The spec installs the wheel as it is, without rebuilding it, using Fedora's Python macros rather than hard-coded
 paths: `%pyproject_install` from `%{_pyproject_wheeldir}`, `%pyproject_save_files` for the file list,
-`%pyproject_check_import` as the check, and `%{python3}`. Maven stores the wheel under its Maven name, which pip
-won't install, so `wheel_info.py` reads the real file name and version from the wheel's metadata. The RPM version
-is the wheel's, with pre-releases written Fedora's way: `1.0.0.dev20261109092243` becomes
-`1.0.0~dev20261109092243`.
+`%pyproject_check_import` as the check, and `%{python3}`. The wheel keeps its Maven file name,
+`example_package-1.0.0-py3-none-any.whl`, which is also its wheel name, and the RPM version is the Maven version.
 
-It needs `rpm-build`, `python3-devel`, `pyproject-rpm-macros` and `python3-pip`, as on Fedora, and the example's
-wheel installed in the Maven repository: `task rpm` builds the plugin, parent, package and RPM in turn. CI builds it
-in a Fedora container, installs the RPM and imports the package from it; the main CI job and the Docker image
-leave it out.
+That holds for releases only, so the RPM project refuses snapshot dependencies (the enforcer's
+`requireReleaseDeps`). A snapshot's Maven name, `example_package-1.0.0-SNAPSHOT-py3-none-any.whl`, isn't a valid
+wheel name, and its wheel is versioned `1.0.0.dev<timestamp>`, which the name doesn't carry. A Maven qualifier, as
+in `1.0.0-rc1`, has the same problem.
+
+It needs `rpm-build`, `python3-devel`, `pyproject-rpm-macros` and `python3-pip`, as on Fedora, and a release of the
+example's wheel in the Maven repository. `task rpm` builds the plugin and the parent, installs the example at
+version 1.0.0 in the local Maven repository (setting the version with `versions:set`, and reverting it after), and
+builds the RPM. CI does the same in a Fedora container, then installs the RPM and imports the package from it; the
+main CI job and the Docker image leave it out.
 
 ## Configuring many projects from a parent POM
 

@@ -55,8 +55,10 @@ jobs:
       - name: Install the example parent
         run: mvn -B -f example_parent/pom.xml install
 
-      - name: Build the example package
-        run: mvn -B -f example_package/pom.xml install
+      - name: Build the example package as release 1.0.0, installed locally only
+        run: |
+          mvn -B -f example_package/pom.xml org.codehaus.mojo:versions-maven-plugin:2.18.0:set -DnewVersion=1.0.0
+          mvn -B -f example_package/pom.xml install
 
       - name: Build the RPM
         run: mvn -B -f example_rpm/pom.xml install

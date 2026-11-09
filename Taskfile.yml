@@ -7,6 +7,8 @@ vars:
   PARENT_DIR: example_parent
   EXAMPLE_DIR: example_package
   RPM_DIR: example_rpm
+  RELEASE: 1.0.0
+  VERSIONS: org.codehaus.mojo:versions-maven-plugin:2.18.0
   MVN: mvn -B
   IMAGE: python-maven-plugin:latest
 
@@ -64,9 +66,18 @@ tasks:
     cmds:
       - '{{.MVN}} install'
 
+  example-release:
+    desc: Install the example package at version {{.RELEASE}} in the local Maven repo only, for the RPM
+    deps: [parent]
+    dir: '{{.EXAMPLE_DIR}}'
+    cmds:
+      - '{{.MVN}} {{.VERSIONS}}:set -DnewVersion={{.RELEASE}}'
+      - defer: '{{.MVN}} {{.VERSIONS}}:revert'
+      - '{{.MVN}} install'
+
   rpm:
-    desc: Build the RPM from the installed example wheel (needs rpmbuild and pyproject-rpm-macros)
-    deps: [example]
+    desc: Build the RPM from the example's {{.RELEASE}} wheel (needs rpmbuild and pyproject-rpm-macros)
+    deps: [example-release]
     dir: '{{.RPM_DIR}}'
     cmds:
       - '{{.MVN}} install'

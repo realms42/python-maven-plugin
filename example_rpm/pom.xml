@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- Packages example_package's wheel as an RPM. Needs rpmbuild and Fedora's pyproject-rpm-macros. -->
+<!-- Packages a release of example_package's wheel as an RPM. Needs rpmbuild and Fedora's pyproject-rpm-macros. -->
 <project xmlns="http://maven.apache.org/POM/4.0.0"
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
     xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
@@ -16,13 +16,14 @@
     <properties>
         <rpm.topdir>${project.build.directory}/rpmbuild</rpm.topdir>
         <rpm.name>python3-example-package</rpm.name>
+        <example.package.version>1.0.0</example.package.version>
     </properties>
 
     <dependencies>
         <dependency>
             <groupId>com.github.realms42</groupId>
             <artifactId>example_package</artifactId>
-            <version>1.0.0-SNAPSHOT</version>
+            <version>${example.package.version}</version>
             <type>whl</type>
             <classifier>py3-none-any</classifier>
         </dependency>
@@ -30,6 +31,25 @@
 
     <build>
         <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-enforcer-plugin</artifactId>
+                <version>3.6.3</version>
+                <executions>
+                    <execution>
+                        <!-- A snapshot wheel's Maven file name isn't a valid wheel name. -->
+                        <id>release-wheels-only</id>
+                        <goals>
+                            <goal>enforce</goal>
+                        </goals>
+                        <configuration>
+                            <rules>
+                                <requireReleaseDeps/>
+                            </rules>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-dependency-plugin</artifactId>
@@ -43,33 +63,7 @@
                         </goals>
                         <configuration>
                             <includeTypes>whl</includeTypes>
-                            <stripVersion>true</stripVersion>
                             <outputDirectory>${rpm.topdir}/SOURCES</outputDirectory>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-resources-plugin</artifactId>
-                <version>3.5.0</version>
-                <executions>
-                    <execution>
-                        <id>helper-to-sources</id>
-                        <phase>generate-resources</phase>
-                        <goals>
-                            <goal>copy-resources</goal>
-                        </goals>
-                        <configuration>
-                            <outputDirectory>${rpm.topdir}/SOURCES</outputDirectory>
-                            <resources>
-                                <resource>
-                                    <directory>src/main/rpm</directory>
-                                    <includes>
-                                        <include>wheel_info.py</include>
-                                    </includes>
-                                </resource>
-                            </resources>
                         </configuration>
                     </execution>
                 </executions>
@@ -93,6 +87,8 @@
                                 <argument>_topdir ${rpm.topdir}</argument>
                                 <argument>--define</argument>
                                 <argument>_rpmfilename ${rpm.name}.rpm</argument>
+                                <argument>--define</argument>
+                                <argument>wheel_version ${example.package.version}</argument>
                                 <argument>${project.basedir}/src/main/rpm/${rpm.name}.spec</argument>
                             </arguments>
                         </configuration>
