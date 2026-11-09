@@ -68,11 +68,10 @@
             <id>rpm</id>
             <activation>
                 <file>
-                    <exists>${basedir}/src/main/rpm</exists>
+                    <exists>${basedir}/package.spec</exists>
                 </file>
             </activation>
             <properties>
-                <rpm.name>${project.artifactId}</rpm.name>
                 <rpm.topdir>${project.build.directory}/rpmbuild</rpm.topdir>
                 <python.publish.skip>true</python.publish.skip>
             </properties>
@@ -111,12 +110,12 @@
                                         <argument>--define</argument>
                                         <argument>_topdir ${rpm.topdir}</argument>
                                         <argument>--define</argument>
-                                        <argument>_rpmfilename ${rpm.name}.rpm</argument>
+                                        <argument>_rpmfilename ${project.artifactId}.rpm</argument>
                                         <argument>--define</argument>
                                         <argument>wheel_version ${python.wheel.rpmVersion}</argument>
                                         <argument>--define</argument>
                                         <argument>wheel_file ${python.wheel.file}</argument>
-                                        <argument>${project.basedir}/src/main/rpm/${rpm.name}.spec</argument>
+                                        <argument>${project.basedir}/package.spec</argument>
                                     </arguments>
                                 </configuration>
                             </execution>
@@ -136,7 +135,7 @@
                                 <configuration>
                                     <artifacts>
                                         <artifact>
-                                            <file>${rpm.topdir}/RPMS/${rpm.name}.rpm</file>
+                                            <file>${rpm.topdir}/RPMS/${project.artifactId}.rpm</file>
                                             <type>rpm</type>
                                         </artifact>
                                     </artifacts>

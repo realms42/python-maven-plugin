@@ -19,7 +19,6 @@
     <description>example_package's wheel, packaged as an RPM</description>
 
     <properties>
-        <rpm.name>python3-example-package</rpm.name>
         <example.package.version>1.0.0-SNAPSHOT</example.package.version>
     </properties>
 

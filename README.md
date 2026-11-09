@@ -71,7 +71,7 @@ need):
 1. `example_parent/`: a parent POM holding the plugin and its configuration, and the RPM and container builds.
 2. `example_package/`: a Python package that only names and versions itself, and inherits the rest from the
    installed parent.
-3. `example_rpm/`: an RPM of the installed package's wheel, which only names its spec and the wheel, and inherits
+3. `example_rpm/`: an RPM of the installed package's wheel, which only has its spec and names the wheel, and inherits
    the build from the parent (see [Building an RPM](#building-an-rpm)).
 4. `example_container/`: a container image with the installed package's wheel in a venv, which only names the wheel
    and inherits the build from the parent (see [Building a container image](#building-a-container-image)).
@@ -289,15 +289,19 @@ Files on TestPyPI are public, so a real setup points the repositories at its own
 
 ## Building an RPM
 
-`example_rpm/` packages the example's wheel as an RPM. Its POM only inherits `example_parent`, names the spec
-(`rpm.name`, `python3-example-package`) and takes the wheel as an ordinary Maven dependency (`<type>whl</type>`,
+`example_rpm/` packages the example's wheel as an RPM. It holds a `package.spec` and a POM that only inherits
+`example_parent` and takes the wheel as an ordinary Maven dependency (`<type>whl</type>`,
 `<classifier>py3-none-any</classifier>`). The rest is the parent's `rpm` profile, which is active in any project
-with a `src/main/rpm/` directory:
+with a `package.spec` at its root:
 
 1. `wheels` copies the wheel into `target/rpmbuild/SOURCES`.
-2. `exec-maven-plugin` runs `rpmbuild` on `src/main/rpm/${rpm.name}.spec`, passing the wheel's file name and RPM
-   version as `wheel_file` and `wheel_version`.
-3. `build-helper-maven-plugin` attaches the RPM to the build as an artifact of type `rpm`.
+2. `exec-maven-plugin` runs `rpmbuild` on `package.spec`, passing the wheel's file name and RPM version as
+   `wheel_file` and `wheel_version`.
+3. `build-helper-maven-plugin` attaches the RPM to the build as an artifact of type `rpm`, from
+   `target/rpmbuild/RPMS/<artifactId>.rpm`.
+
+The spec has a fixed name because Maven activates a profile on a file that exists, not on a pattern. The package's
+own name is the spec's `Name:`, `python3-example-package`.
 
 The profile also skips the inherited `publish` goal, so an RPM project never uploads to a package index. Maven
 resolves the wheel itself, without the plugin's extension: it takes the `whl` type as the file extension.
