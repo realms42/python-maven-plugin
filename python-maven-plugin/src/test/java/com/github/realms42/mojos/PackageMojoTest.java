@@ -125,7 +125,8 @@ class PackageMojoTest {
 
         MojoExecutionException e = assertThrows(MojoExecutionException.class, () -> mojo().execute());
 
-        assertEquals("Failed to list files in " + output, e.getMessage());
+        assertEquals("Expected exactly one .tar.gz in " + output + ", found 0."
+                + " Maven can only publish one primary artifact.", e.getMessage());
     }
 
     private static final class RecordingProjectHelper implements MavenProjectHelper {

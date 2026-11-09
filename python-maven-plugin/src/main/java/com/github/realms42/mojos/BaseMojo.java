@@ -1,6 +1,7 @@
 package com.github.realms42.mojos;
 
 import java.io.File;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
@@ -15,6 +16,8 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.apache.maven.plugin.AbstractMojo;
 import org.apache.maven.plugin.MojoExecutionException;
@@ -51,6 +54,28 @@ public abstract class BaseMojo extends AbstractMojo {
 
     protected Path getPythonBuildPath() {
         return buildDir.toPath().resolve("python-build");
+    }
+
+    // The sdists and wheels the build goal built, sorted; none when it hasn't run.
+    protected List<Path> builtDistributions() throws MojoExecutionException {
+        Path output = getPythonBuildPath();
+        if (!Files.isDirectory(output)) {
+            return List.of();
+        }
+        try (Stream<Path> files = Files.list(output)) {
+            return files.filter(Files::isRegularFile)
+                    .filter(p -> p.getFileName().toString().endsWith(WHEEL)
+                            || p.getFileName().toString().endsWith(SDIST))
+                    .sorted()
+                    .collect(Collectors.toList());
+        } catch (IOException e) {
+            throw new MojoExecutionException("Failed to list " + output, e);
+        }
+    }
+
+    protected boolean isSnapshot() {
+        return version.regionMatches(true, Math.max(0, version.length() - SNAPSHOT.length()), SNAPSHOT, 0,
+                SNAPSHOT.length());
     }
 
     protected Map<String, String> uvEnvironment() {
@@ -115,10 +140,6 @@ public abstract class BaseMojo extends AbstractMojo {
         return "extend-exclude = [\"" + path + "\"]";
     }
 
-    protected void run(String cmd, List<String> args) throws MojoExecutionException {
-        run(cmd, args, new HashMap<>());
-    }
-
     protected void run(String cmd, List<String> args, Map<String, String> envOverrides) throws MojoExecutionException {
         int exitCode = exec(cmd, args, envOverrides);
         if (exitCode != 0) {
@@ -142,14 +163,13 @@ public abstract class BaseMojo extends AbstractMojo {
             getLog().debug("Running command: " + command);
             return CommandLineUtils.executeCommandLine(command, stdout, stderr);
         } catch (CommandLineException e) {
-            throw new MojoExecutionException("Failed to log command: " + e.getMessage());
+            throw new MojoExecutionException("Failed to run `" + cmd + "`: " + e.getMessage(), e);
         }
     }
 
     protected String versionToPep440() throws MojoExecutionException {
         String v = version;
-        boolean snapshot = v.regionMatches(true, Math.max(0, v.length() - SNAPSHOT.length()), SNAPSHOT, 0,
-                SNAPSHOT.length());
+        boolean snapshot = isSnapshot();
         if (snapshot) {
             v = v.substring(0, v.length() - SNAPSHOT.length());
         }
@@ -183,6 +203,8 @@ public abstract class BaseMojo extends AbstractMojo {
         return pep440.toString();
     }
 
+    protected static final String WHEEL = ".whl";
+    protected static final String SDIST = ".tar.gz";
     private static final String SNAPSHOT = "-SNAPSHOT";
     private static final DateTimeFormatter SNAPSHOT_TIMESTAMP =
             DateTimeFormatter.ofPattern("yyyyMMddHHmmss").withZone(ZoneOffset.UTC);

@@ -1,14 +1,12 @@
 package com.github.realms42.mojos;
 
-import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
-import java.util.stream.Stream;
+import java.util.stream.Collectors;
 
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.MojoFailureException;
@@ -83,14 +81,9 @@ public class TestMojo extends BaseMojo {
     }
 
     private Path builtWheel() throws MojoExecutionException {
-        List<Path> wheels = new ArrayList<>();
-        if (Files.isDirectory(getPythonBuildPath())) {
-            try (Stream<Path> files = Files.list(getPythonBuildPath())) {
-                files.filter(p -> p.getFileName().toString().endsWith(".whl")).sorted().forEach(wheels::add);
-            } catch (IOException e) {
-                throw new MojoExecutionException("Failed to list " + getPythonBuildPath(), e);
-            }
-        }
+        List<Path> wheels = builtDistributions().stream()
+                .filter(p -> p.getFileName().toString().endsWith(WHEEL))
+                .collect(Collectors.toList());
         if (wheels.size() != 1) {
             throw new MojoExecutionException("Expected exactly one wheel in " + getPythonBuildPath() + " to test,"
                     + " found " + wheels.size() + ". Run the build goal first, or test the source tree with"

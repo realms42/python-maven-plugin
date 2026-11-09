@@ -1,7 +1,5 @@
 package com.github.realms42.mojos;
 
-import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -24,9 +22,6 @@ import org.apache.maven.settings.crypto.SettingsDecryptionResult;
 /** Uploads the built distributions to a Python package index with {@code uv publish}. */
 @Mojo(name = "publish", defaultPhase = LifecyclePhase.DEPLOY, threadSafe = true)
 public class PublishMojo extends BaseMojo {
-
-    @Parameter(defaultValue = "${project.version}", readonly = true)
-    private String version;
 
     @Parameter(defaultValue = "${settings}", readonly = true)
     private Settings settings;
@@ -85,26 +80,20 @@ public class PublishMojo extends BaseMojo {
         PublishRepository repository = targetRepository(snapshot);
         String target = repository.getUrl();
 
-        List<Path> distributions = distributions();
+        List<Path> distributions = builtDistributions();
         if (distributions.isEmpty()) {
             throw new MojoExecutionException("No distributions to publish in " + getPythonBuildPath()
                     + ". Run the build goal first.");
         }
 
-        List<String> files = distributions.stream().map(Path::toString).collect(Collectors.toList());
         for (Path distribution : distributions) {
             getLog().info("Publishing: " + distribution.getFileName());
         }
         Map<String, String> credentials = credentials(repository.getId(), snapshot ? "snapshot" : "release");
-        List<String> args = new ArrayList<>();
-        args.add("publish");
-        args.add("--dry-run");
-        args.addAll(uploadOptions(target, files));
-        run("uv", args, credentials);
-        args.clear();
-        args.add("publish");
-        args.addAll(uploadOptions(target, files));
-        run("uv", args, credentials);
+        List<String> upload = new ArrayList<>(List.of("--publish-url", target));
+        distributions.forEach(d -> upload.add(d.toString()));
+        run("uv", concat(List.of("publish", "--dry-run"), upload), credentials);
+        run("uv", concat(List.of("publish"), upload), credentials);
         getLog().info("Published " + distributions.size() + " distribution(s) to " + target);
     }
 
@@ -135,34 +124,8 @@ public class PublishMojo extends BaseMojo {
         return property == null || property.isBlank() ? null : property;
     }
 
-    private boolean isSnapshot() {
-        return version != null && version.toUpperCase().endsWith("-SNAPSHOT");
-    }
-
-    private List<Path> distributions() throws MojoExecutionException {
-        Path buildPath = getPythonBuildPath();
-        if (!Files.isDirectory(buildPath)) {
-            return new ArrayList<>();
-        }
-        try (Stream<Path> entries = Files.list(buildPath)) {
-            return entries.filter(Files::isRegularFile)
-                    .filter(p -> {
-                        String name = p.getFileName().toString();
-                        return name.endsWith(".whl") || name.endsWith(".tar.gz");
-                    })
-                    .sorted()
-                    .collect(Collectors.toList());
-        } catch (IOException e) {
-            throw new MojoExecutionException("Failed to list " + buildPath + ": " + e.getMessage());
-        }
-    }
-
-    private List<String> uploadOptions(String target, List<String> files) {
-        List<String> options = new ArrayList<>();
-        options.add("--publish-url");
-        options.add(target);
-        options.addAll(files);
-        return options;
+    private static List<String> concat(List<String> first, List<String> second) {
+        return Stream.concat(first.stream(), second.stream()).collect(Collectors.toList());
     }
 
     private Map<String, String> credentials(String serverId, String kind) throws MojoExecutionException {

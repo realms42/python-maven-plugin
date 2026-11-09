@@ -1,13 +1,10 @@
 package com.github.realms42.mojos;
 
-import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugins.annotations.Component;
@@ -21,9 +18,6 @@ import org.apache.maven.project.MavenProjectHelper;
 @Mojo(name = "package", defaultPhase = LifecyclePhase.PACKAGE, threadSafe = true)
 public class PackageMojo extends BaseMojo {
 
-    private static final String WHEEL = ".whl";
-    private static final String SDIST = ".tar.gz";
-
     @Parameter(defaultValue = "${project}", readonly = true, required = true)
     private MavenProject project;
 
@@ -32,15 +26,7 @@ public class PackageMojo extends BaseMojo {
 
     @Override
     public void execute() throws MojoExecutionException {
-        List<Path> artifacts;
-        try (Stream<Path> files = Files.list(getPythonBuildPath())) {
-            artifacts = files
-                    .filter(Files::isRegularFile)
-                    .collect(Collectors.toList());
-        } catch (IOException e) {
-            throw new MojoExecutionException("Failed to list files in " + getPythonBuildPath(), e);
-        }
-
+        List<Path> artifacts = builtDistributions();
         project.getArtifact().setFile(soleSdist(artifacts).toFile());
         getLog().info("Project artifact: " + project.getArtifact().getFile().getName());
 
