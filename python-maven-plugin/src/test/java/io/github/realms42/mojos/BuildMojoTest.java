@@ -1,7 +1,7 @@
-package com.github.realms42.mojos;
+package io.github.realms42.mojos;
 
-import static com.github.realms42.mojos.MojoTesting.configure;
-import static com.github.realms42.mojos.MojoTesting.log;
+import static io.github.realms42.mojos.MojoTesting.configure;
+import static io.github.realms42.mojos.MojoTesting.log;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -19,7 +19,7 @@ import org.apache.maven.plugin.MojoExecutionException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-import com.github.realms42.mojos.MojoTesting.Commands;
+import io.github.realms42.mojos.MojoTesting.Commands;
 
 class BuildMojoTest {
 

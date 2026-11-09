@@ -1,4 +1,4 @@
-package com.github.realms42.mojos;
+package io.github.realms42.mojos;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -23,7 +23,7 @@ import org.w3c.dom.Node;
 
 class PluginWiringTest {
 
-    private static final String PLUGIN = "com.github.realms42:python-maven-plugin:";
+    private static final String PLUGIN = "io.github.realms42:python-maven-plugin:";
 
     @Test
     void pythonPackagingBindsTheGoalsToTheLifecycle() throws Exception {

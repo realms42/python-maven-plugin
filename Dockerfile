@@ -1,11 +1,11 @@
-FROM redhat/ubi10:latest
+FROM redhat/ubi10:10.2-1792744468
 
 RUN dnf update -y \
     && dnf install -y maven python3 \
     && dnf clean all \
     && rm -rf /var/cache/dnf
 
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /usr/local/bin/
+COPY --from=ghcr.io/astral-sh/uv:0.13.5 /uv /uvx /usr/local/bin/
 ENV UV_LINK_MODE=copy
 
 WORKDIR /plugin

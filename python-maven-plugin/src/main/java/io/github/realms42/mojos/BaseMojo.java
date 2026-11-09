@@ -1,4 +1,4 @@
-package com.github.realms42.mojos;
+package io.github.realms42.mojos;
 
 import java.io.File;
 import java.io.IOException;
@@ -99,8 +99,7 @@ public abstract class BaseMojo extends AbstractMojo {
     }
 
     protected static Path venvExecutable(Path venv, String name) {
-        boolean windows = System.getProperty("os.name").toLowerCase().contains("win");
-        return windows ? venv.resolve("Scripts").resolve(name + ".exe") : venv.resolve("bin").resolve(name);
+        return venv.resolve("bin").resolve(name);
     }
 
     protected void uvSync(String... options) throws MojoExecutionException {

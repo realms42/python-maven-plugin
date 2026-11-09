@@ -84,14 +84,14 @@ tasks:
     deps: [parent]
     dir: '{{.EXAMPLE_DIR}}'
     cmds:
-      - '{{.MVN}} com.github.realms42:python-maven-plugin:lint'
+      - '{{.MVN}} io.github.realms42:python-maven-plugin:lint'
 
   format:
     desc: Check the example package's formatting via the plugin's format goal
     deps: [parent]
     dir: '{{.EXAMPLE_DIR}}'
     cmds:
-      - '{{.MVN}} com.github.realms42:python-maven-plugin:format'
+      - '{{.MVN}} io.github.realms42:python-maven-plugin:format'
 
   docker:
     desc: Build the Docker image (plugin, parent and example package, without tests)

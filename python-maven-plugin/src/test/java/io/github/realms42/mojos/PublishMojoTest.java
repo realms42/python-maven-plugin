@@ -1,8 +1,8 @@
-package com.github.realms42.mojos;
+package io.github.realms42.mojos;
 
-import static com.github.realms42.mojos.MojoTesting.configure;
-import static com.github.realms42.mojos.MojoTesting.log;
-import static com.github.realms42.mojos.MojoTesting.set;
+import static io.github.realms42.mojos.MojoTesting.configure;
+import static io.github.realms42.mojos.MojoTesting.log;
+import static io.github.realms42.mojos.MojoTesting.set;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -28,7 +28,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.NullAndEmptySource;
 import org.junit.jupiter.params.provider.ValueSource;
 
-import com.github.realms42.mojos.MojoTesting.Commands;
+import io.github.realms42.mojos.MojoTesting.Commands;
 
 class PublishMojoTest {
 

@@ -1,4 +1,4 @@
-package com.github.realms42.mojos;
+package io.github.realms42.mojos;
 
 import java.nio.file.Path;
 import java.util.Arrays;

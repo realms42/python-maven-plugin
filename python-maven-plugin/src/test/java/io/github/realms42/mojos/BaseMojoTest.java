@@ -1,7 +1,7 @@
-package com.github.realms42.mojos;
+package io.github.realms42.mojos;
 
-import static com.github.realms42.mojos.MojoTesting.configure;
-import static com.github.realms42.mojos.MojoTesting.log;
+import static io.github.realms42.mojos.MojoTesting.configure;
+import static io.github.realms42.mojos.MojoTesting.log;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -20,13 +20,11 @@ import java.util.TimeZone;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.MojoFailureException;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.condition.DisabledOnOs;
-import org.junit.jupiter.api.condition.OS;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
-import com.github.realms42.mojos.MojoTesting.Commands;
+import io.github.realms42.mojos.MojoTesting.Commands;
 
 class BaseMojoTest {
 
@@ -235,7 +233,6 @@ class BaseMojoTest {
     }
 
     @Test
-    @DisabledOnOs(OS.WINDOWS)
     void ruffExcludeEscapesThePathForToml() {
         BaseMojo mojo = mojo("1.0.0");
         mojo.buildDir = new File("/builds/it's \"quoted\"\\target");
@@ -244,7 +241,6 @@ class BaseMojoTest {
     }
 
     @Test
-    @DisabledOnOs(OS.WINDOWS)
     void execRunsInTheProjectDirectory() throws Exception {
         BaseMojo mojo = mojo("1.0.0");
 
@@ -254,7 +250,6 @@ class BaseMojoTest {
     }
 
     @Test
-    @DisabledOnOs(OS.WINDOWS)
     void execLogsTheToolsOutputAtInfoAndTheCommandLineAtDebug() throws Exception {
         BaseMojo mojo = mojo("1.0.0");
 
@@ -267,7 +262,6 @@ class BaseMojoTest {
     }
 
     @Test
-    @DisabledOnOs(OS.WINDOWS)
     void execPassesTheEnvironmentAndReturnsTheExitCode() throws Exception {
         BaseMojo mojo = mojo("1.0.0");
 
@@ -278,7 +272,6 @@ class BaseMojoTest {
     }
 
     @Test
-    @DisabledOnOs(OS.WINDOWS)
     void runFailsOnANonZeroExitCode() {
         MojoExecutionException e = assertThrows(MojoExecutionException.class,
                 () -> mojo("1.0.0").run("sh", List.of("-c", "exit 3"), Map.of()));

@@ -2,7 +2,7 @@
 
 Name:           python3-example-package
 Version:        %{wheel_version}
-Release:        1%{?dist}
+Release:        %{rpm_release}%{?dist}
 Summary:        Example package built by python-maven-plugin
 License:        GPL-3.0-only
 URL:            https://github.com/realms42/python-maven-plugin
@@ -31,3 +31,7 @@ cp -p %{SOURCE0} %{_pyproject_wheeldir}/
 %pyproject_check_import
 
 %files -f %{pyproject_files}
+
+%changelog
+* Mon Nov 09 2026 realms42 - 1.0.0-1
+- Package example_package's wheel

@@ -30,7 +30,7 @@ The plugin isn't released yet: install it into your local Maven repository with 
   <build>
     <plugins>
       <plugin>
-        <groupId>com.github.realms42</groupId>
+        <groupId>io.github.realms42</groupId>
         <artifactId>python-maven-plugin</artifactId>
         <version>1.0.0-SNAPSHOT</version>
         <extensions>true</extensions>
@@ -104,7 +104,7 @@ which is for projects that consume wheels; see [The `wheels` goal](#the-wheels-g
   with a message saying which; a tool that can't run (a bad configuration, a stale lock) is a build error naming
   the command.
 - **`mvn -o`** keeps uv offline too, working from its cache. **Parallel builds** (`-T`) are supported.
-- `mvn help:describe -Dplugin=com.github.realms42:python-maven-plugin -Ddetail` lists every goal and parameter.
+- `mvn help:describe -Dplugin=io.github.realms42:python-maven-plugin -Ddetail` lists every goal and parameter.
 
 ## Versioning
 
@@ -239,7 +239,7 @@ repositories. The `id` names the `settings.xml` `<server>` that holds the creden
 
 ```xml
 <plugin>
-  <groupId>com.github.realms42</groupId>
+  <groupId>io.github.realms42</groupId>
   <artifactId>python-maven-plugin</artifactId>
   <version>1.0.0-SNAPSHOT</version>
   <extensions>true</extensions>
@@ -275,8 +275,14 @@ configuration block wins value by value:
 | `python.publish.skip` | Skip publishing entirely |
 
 Without an `id`, uv finds credentials itself (`UV_PUBLISH_USERNAME` and `UV_PUBLISH_PASSWORD`, or trusted
-publishing). Snapshot versions are timestamped and feature branch versions carry a `+branch` label; see
-[Versioning](#versioning) for what an index has to accept.
+publishing).
+
+**Feature branch snapshots can't be published to PyPI or TestPyPI.** Their versions carry the branch as a PEP 440
+local version label, such as `1.0.0.dev20261105152300+feature.name` (see [Versioning](#versioning)), and PyPI and
+TestPyPI refuse to upload any version with a local label. So does any index that follows PyPI's rules; private
+indexes differ, so check what yours accepts. On a feature branch, publish to an index that accepts local versions,
+or skip snapshots with `-Dpython.publish.skipSnapshots`. Plain snapshots (`1.0.0.dev20261105152300`) and releases
+have no local label.
 
 `mvn deploy` still runs Maven's own deploy plugin, as for any Maven project: it uploads the sdist and wheel as Maven
 artifacts to the POM's `<distributionManagement>` repository, and fails if there is none.
@@ -299,7 +305,7 @@ with `<extensions>true</extensions>` in the parent's `<build><plugins>` so that 
   <pluginManagement>
     <plugins>
       <plugin>
-        <groupId>com.github.realms42</groupId>
+        <groupId>io.github.realms42</groupId>
         <artifactId>python-maven-plugin</artifactId>
         <version>1.0.0-SNAPSHOT</version>
         <configuration>
@@ -376,7 +382,7 @@ does.
 
 ```xml
 <plugin>
-  <groupId>com.github.realms42</groupId>
+  <groupId>io.github.realms42</groupId>
   <artifactId>python-maven-plugin</artifactId>
   <version>1.0.0-SNAPSHOT</version>
   <executions>
@@ -393,6 +399,16 @@ It runs in `generate-resources`, and copies to `target/wheels/` unless `outputDi
 (`python.wheels.outputDirectory`) says otherwise. A project that depends on several wheels of one artifact, such as
 one per platform, gets them all copied but no properties for that artifact.
 
+**Pure-Python wheels only, in the examples.** The RPM and container examples take the `py3-none-any` wheel, and
+the spec is `BuildArch: noarch`. A wheel with compiled code is tagged for one Python and platform, such as
+`cp313-cp313-manylinux_2_28_x86_64`, so packaging one takes, per platform:
+
+- a dependency with that tag as its classifier, as `wheels` sets the properties only for an artifact with one
+  wheel;
+- an RPM built on and for that architecture, without `BuildArch: noarch`, and for the Python version the wheel
+  was built for;
+- a base image with that Python version and architecture.
+
 The RPM version is written the way Fedora writes Python versions, so RPMs sort as the wheels do: `~` for a
 pre-release (`1.0.0~rc1`), `~~` for a dev release of a final release (`1.0.0~~dev…`, so that it sorts before
 the pre-releases too), `^` for a post-release (`1.0.0^post1`), and a local label kept after `+`. A version with
@@ -407,7 +423,8 @@ with a `package.spec` at its root:
 
 1. `wheels` copies the wheel into `target/rpmbuild/SOURCES`.
 2. `exec-maven-plugin` runs `rpmbuild` on `package.spec`, passing the wheel's file name and RPM version as
-   `wheel_file` and `wheel_version`.
+   `wheel_file` and `wheel_version`, and the RPM release as `rpm_release`: `rpm.release`, `1` unless set, so that
+   a rebuild of the same wheel can be released as `-Drpm.release=2`.
 3. `build-helper-maven-plugin` attaches the RPM to the build as an artifact of type `rpm`, from
    `target/rpmbuild/RPMS/<artifactId>.rpm`.
 
@@ -463,7 +480,7 @@ runs in the image, as the venv's `activate` script would: `VIRTUAL_ENV` is set t
 comes first on the `PATH`, so `python`, `pip` and any console scripts the wheel installs are the venv's.
 The wheel is mounted for the install rather than copied, so it isn't left in the image. `container.engine=podman`
 builds with podman instead of docker, and the `PYTHON_IMAGE` build argument chooses the base image
-(`python:3.13-slim`). The image is built in `package` and not pushed anywhere: pushing it to a registry is up to
+(`python:3.13.17-slim`). The image is built in `package` and not pushed anywhere: pushing it to a registry is up to
 the project.
 
 `task container` builds the plugin, parent, package and image in turn. CI builds the image after the example and
@@ -509,8 +526,8 @@ Safeguards, so that a deployment that fires by accident publishes nothing:
 
 Still needed before a first release to Central:
 
-- **A verified namespace.** Central registers GitHub-based namespaces as `io.github.<user>`, so the groupId would
-  likely change from `com.github.realms42`.
+- **A verified namespace:** `io.github.realms42`, the groupId. Central verifies an `io.github.<user>` namespace
+  through the GitHub account `<user>`, here realms42.
 - **Signed artifacts:** Central rejects unsigned deployments at validation; add `maven-gpg-plugin` to the
   `release` profile with a signing key.
 - **Credentials:** a `settings.xml` `<server>` with the id `central` holding a Central Portal user token.
