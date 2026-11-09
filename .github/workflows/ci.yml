@@ -11,23 +11,100 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7.0.1
 
       - name: Set up JDK
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v6.1.0
         with:
           distribution: temurin
           java-version: '11'
           cache: maven
 
       - name: Set up uv
-        uses: astral-sh/setup-uv@v7
+        uses: astral-sh/setup-uv@v10.3.2
 
       - name: Install Task
-        uses: arduino/setup-task@v2
+        uses: arduino/setup-task@v3.0.0
         with:
           version: 3.x
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and test the plugin, then build the example package
         run: task all
+
+      - name: Build the container image
+        run: mvn -B -f example_container/pom.xml install
+
+      - name: Check the image's venv is active, and import the package from it
+        run: >
+          docker run --rm example-container:1.0.0-SNAPSHOT python -c
+          "import os, sys, example_package, importlib.metadata as m;
+          print(sys.prefix, example_package.__file__, m.version('example_package'));
+          assert sys.prefix == os.environ['VIRTUAL_ENV'] == '/opt/venv', sys.prefix;
+          assert example_package.__file__.startswith('/opt/venv/')"
+
+  rpm:
+    runs-on: ubuntu-latest
+    container: fedora:43
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Install the RPM build tools
+        run: >
+          dnf install -y git maven rpm-build python3-devel pyproject-rpm-macros python3-pip
+          python3-packaging python3-hatchling python3-hatch-vcs
+
+      - name: Checkout
+        uses: actions/checkout@v7.0.1
+
+      - name: Trust the checkout
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v10.3.2
+
+      - name: Build the plugin
+        run: mvn -B -f python-maven-plugin/pom.xml install -Dmaven.test.skip=true -Dinvoker.skip
+
+      - name: Install the example parent
+        run: mvn -B -f example_parent/pom.xml install
+
+      - name: Build the example package
+        run: mvn -B -f example_package/pom.xml install
+
+      - name: Build the RPM
+        run: mvn -B -f example_rpm/pom.xml install
+
+      - name: Install the RPM and import the package from it
+        run: |
+          dnf install -y example_rpm/target/rpmbuild/RPMS/example-rpm.rpm
+          rpm -qil python3-example-package
+          version=$(rpm -q --qf '%{VERSION}' python3-example-package)
+          [[ $version == 1.0.0~~dev* ]] || { echo "Unexpected RPM version $version"; exit 1; }
+          [[ $(rpm --eval "%{lua: print(rpm.vercmp('$version', '1.0.0'))}") == -1 ]] || { echo "$version doesn't sort before 1.0.0"; exit 1; }
+          cd / && python3 -c "import example_package, importlib.metadata as m; print(example_package.__file__, m.version('example_package'))"
+
+      - name: Build the RPM from the sdist, and install it in place of the wheel's
+        run: |
+          mvn -B -f example_rpm_sdist/pom.xml install
+          dnf remove -y python3-example-package
+          dnf install -y example_rpm_sdist/target/rpmbuild/RPMS/example-rpm-sdist.rpm
+          version=$(rpm -q --qf '%{VERSION}' python3-example-package)
+          [[ $version == 1.0.0~~dev* ]] || { echo "Unexpected RPM version $version"; exit 1; }
+          cd / && python3 -c "import example_package, importlib.metadata as m; v = m.version('example_package'); print(example_package.__file__, v); assert v == '${version/\~\~/.}', v"
+
+      - name: Build the example package and the RPM on a feature branch
+        run: |
+          mvn -B -f example_package/pom.xml org.codehaus.mojo:versions-maven-plugin:2.18.0:set -DnewVersion=1.0.0-feature_rpm-SNAPSHOT
+          mvn -B -f example_package/pom.xml install
+          mvn -B -f example_rpm/pom.xml install -Dexample.package.version=1.0.0-feature_rpm-SNAPSHOT
+
+      - name: Upgrade to the feature branch's RPM
+        run: |
+          dnf install -y example_rpm/target/rpmbuild/RPMS/example-rpm.rpm
+          version=$(rpm -q --qf '%{VERSION}' python3-example-package)
+          [[ $version == 1.0.0~~dev*+feature.rpm ]] || { echo "Unexpected RPM version $version"; exit 1; }
+          rpm -q --provides python3-example-package
+          cd / && python3 -c "import importlib.metadata as m; v = m.version('example_package'); print(v); assert v.endswith('+feature.rpm'), v"

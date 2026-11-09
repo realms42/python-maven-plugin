@@ -30,7 +30,7 @@ The plugin isn't released yet: install it into your local Maven repository with 
   <build>
     <plugins>
       <plugin>
-        <groupId>com.github.realms42</groupId>
+        <groupId>io.github.realms42</groupId>
         <artifactId>python-maven-plugin</artifactId>
         <version>1.0.0-SNAPSHOT</version>
         <extensions>true</extensions>
@@ -62,9 +62,21 @@ cache-keys = [{ file = "pyproject.toml" }, { git = { commit = true, tags = true 
 ```
 
 **3. Build:** `mvn install` builds, tests, packages, lints and checks the formatting, then installs the sdist and
-wheel into the local Maven repository. `example_parent/` and `example_package/` are a complete example: the
-parent holds the plugin and its configuration, the package only names itself, and `mvn install` in
-`example_parent/` builds both.
+wheel into the local Maven repository.
+
+The examples are independent projects, as if each lived in its own repository, connected only through the Maven
+repository. Build them in order, each with `mvn install` (`task rpm`, `task rpm-sdist` and `task container` build
+everything they need):
+
+1. `example_parent/`: a parent POM holding the plugin and its configuration, and the RPM and container builds.
+2. `example_package/`: a Python package that only names and versions itself, and inherits the rest from the
+   installed parent.
+3. `example_rpm/`: an RPM of the installed package's wheel, which only has its spec and names the wheel, and inherits
+   the build from the parent (see [Building an RPM](#building-an-rpm)).
+4. `example_rpm_sdist/`: the same RPM, built from the package's sdist instead (see
+   [Building an RPM from the sdist](#building-an-rpm-from-the-sdist)).
+5. `example_container/`: a container image with the installed package's wheel in a venv, which only names the wheel
+   and inherits the build from the parent (see [Building a container image](#building-a-container-image)).
 
 ## The build
 
@@ -79,7 +91,9 @@ parent holds the plugin and its configuration, the package only names itself, an
 | verify | `format` | `ruff format --check`, never rewrites a file | `-Dpython.format.skip` |
 | install, deploy | Maven's install and deploy plugins | | |
 
-`publish`, which uploads to a Python package index, isn't bound; see [Publishing](#publishing).
+`publish`, which uploads to a Python package index, isn't bound; see [Publishing](#publishing). Nor is
+`distributions`, which is for projects that consume wheels or sdists; see
+[The `distributions` goal](#the-distributions-goal).
 
 - **The build never modifies the project.** Every environment, cache and output goes under
   `target/python-maven-plugin/` and `target/python-build/`, and ruff never fixes or rewrites anything.
@@ -93,7 +107,7 @@ parent holds the plugin and its configuration, the package only names itself, an
   with a message saying which; a tool that can't run (a bad configuration, a stale lock) is a build error naming
   the command.
 - **`mvn -o`** keeps uv offline too, working from its cache. **Parallel builds** (`-T`) are supported.
-- `mvn help:describe -Dplugin=com.github.realms42:python-maven-plugin -Ddetail` lists every goal and parameter.
+- `mvn help:describe -Dplugin=io.github.realms42:python-maven-plugin -Ddetail` lists every goal and parameter.
 
 ## Versioning
 
@@ -228,7 +242,7 @@ repositories. The `id` names the `settings.xml` `<server>` that holds the creden
 
 ```xml
 <plugin>
-  <groupId>com.github.realms42</groupId>
+  <groupId>io.github.realms42</groupId>
   <artifactId>python-maven-plugin</artifactId>
   <version>1.0.0-SNAPSHOT</version>
   <extensions>true</extensions>
@@ -264,8 +278,14 @@ configuration block wins value by value:
 | `python.publish.skip` | Skip publishing entirely |
 
 Without an `id`, uv finds credentials itself (`UV_PUBLISH_USERNAME` and `UV_PUBLISH_PASSWORD`, or trusted
-publishing). Snapshot versions are timestamped and feature branch versions carry a `+branch` label; see
-[Versioning](#versioning) for what an index has to accept.
+publishing).
+
+**Feature branch snapshots can't be published to PyPI or TestPyPI.** Their versions carry the branch as a PEP 440
+local version label, such as `1.0.0.dev20261105152300+feature.name` (see [Versioning](#versioning)), and PyPI and
+TestPyPI refuse to upload any version with a local label. So does any index that follows PyPI's rules; private
+indexes differ, so check what yours accepts. On a feature branch, publish to an index that accepts local versions,
+or skip snapshots with `-Dpython.publish.skipSnapshots`. Plain snapshots (`1.0.0.dev20261105152300`) and releases
+have no local label.
 
 `mvn deploy` still runs Maven's own deploy plugin, as for any Maven project: it uploads the sdist and wheel as Maven
 artifacts to the POM's `<distributionManagement>` repository, and fails if there is none.
@@ -288,7 +308,7 @@ with `<extensions>true</extensions>` in the parent's `<build><plugins>` so that 
   <pluginManagement>
     <plugins>
       <plugin>
-        <groupId>com.github.realms42</groupId>
+        <groupId>io.github.realms42</groupId>
         <artifactId>python-maven-plugin</artifactId>
         <version>1.0.0-SNAPSHOT</version>
         <configuration>
@@ -341,6 +361,165 @@ with `<extensions>true</extensions>` in the parent's `<build><plugins>` so that 
 - **The plugin's own pytest options win:** its cache and JUnit report stay under `target/` whatever the settings
   say.
 
+## The `distributions` goal
+
+For a project that takes a Python package's wheel or sdist as a dependency, such as an RPM or a container image.
+The dependency is an ordinary one, which Maven resolves without the plugin's extension, taking the type as the
+file extension:
+
+- a wheel: `<type>whl</type>`, with the wheel's tag as `<classifier>`, such as `py3-none-any`;
+- an sdist, the project's main artifact: `<type>tar.gz</type>`, without a classifier.
+
+The plugin is only needed for this goal. A distribution's Maven file name is not its Python file name: a
+snapshot's, such as `example_package-1.0.0-SNAPSHOT-py3-none-any.whl`, puts `SNAPSHOT` where a wheel name has its
+build number, so pip won't install it, and neither name carries the Python version, `1.0.0.dev<timestamp>`. The
+`distributions` goal reads the name and version from each wheel's `METADATA` and sdist's `PKG-INFO` (and a wheel's
+tags from its `WHEEL`), copies it under its Python file name, and sets these properties for the plugins that run
+after it:
+
+| Property | Example |
+|---|---|
+| `python.wheel.<artifactId>.file` | `example_package-1.0.0.dev20261109092818+feature.rpm-py3-none-any.whl` |
+| `python.sdist.<artifactId>.file` | `example_package-1.0.0.dev20261109092818+feature.rpm.tar.gz` |
+| `python.wheel.<artifactId>.version`, `python.sdist.<artifactId>.version` | `1.0.0.dev20261109092818+feature.rpm` |
+| `python.wheel.<artifactId>.rpmVersion`, `python.sdist.<artifactId>.rpmVersion` | `1.0.0~~dev20261109092818+feature.rpm` |
+
+When the project depends on one distribution only, it also sets `python.distribution.file`,
+`python.distribution.version` and `python.distribution.rpmVersion`, which a parent POM can use without knowing the
+artifactId or the kind of distribution, as the example's does.
+
+```xml
+<plugin>
+  <groupId>io.github.realms42</groupId>
+  <artifactId>python-maven-plugin</artifactId>
+  <version>1.0.0-SNAPSHOT</version>
+  <executions>
+    <execution>
+      <goals>
+        <goal>distributions</goal>
+      </goals>
+    </execution>
+  </executions>
+</plugin>
+```
+
+It runs in `generate-resources`, and copies to `target/distributions/` unless `outputDirectory`
+(`python.distributions.outputDirectory`) says otherwise. A project that depends on several wheels of one artifact,
+such as one per platform, gets them all copied but no wheel properties for that artifact.
+
+**Pure-Python wheels only, in the examples.** The RPM and container examples take the `py3-none-any` wheel, and
+the spec is `BuildArch: noarch`. A wheel with compiled code is tagged for one Python and platform, such as
+`cp313-cp313-manylinux_2_28_x86_64`, so packaging one takes, per platform:
+
+- a dependency with that tag as its classifier, as `distributions` sets the properties only for an artifact with
+  one wheel;
+- an RPM built on and for that architecture, without `BuildArch: noarch`, and for the Python version the wheel
+  was built for;
+- a base image with that Python version and architecture.
+
+The RPM version is written the way Fedora writes Python versions, so RPMs sort as the wheels do: `~` for a
+pre-release (`1.0.0~rc1`), `~~` for a dev release of a final release (`1.0.0~~dev…`, so that it sorts before
+the pre-releases too), `^` for a post-release (`1.0.0^post1`), and a local label kept after `+`. A version with
+an epoch (`1!2.0`) gets no `rpmVersion`, since RPM keeps the epoch in its own tag.
+
+## Building an RPM
+
+`example_rpm/` packages the example's wheel as an RPM. It holds a `package.spec` and a POM that only inherits
+`example_parent` and takes the wheel as an ordinary Maven dependency (`<type>whl</type>`,
+`<classifier>py3-none-any</classifier>`). The rest is the parent's `rpm` profile, which is active in any project
+with a `package.spec` at its root:
+
+1. `distributions` copies the wheel into `target/rpmbuild/SOURCES`.
+2. `exec-maven-plugin` runs `rpmbuild` on `package.spec`, passing the distribution's file name, Python version and
+   RPM version as `dist_file`, `dist_version` and `dist_rpm_version`, and the RPM release as `rpm_release`:
+   `rpm.release`, `1` unless set, so that a rebuild of the same version can be released as `-Drpm.release=2`.
+3. `build-helper-maven-plugin` attaches the RPM to the build as an artifact of type `rpm`, from
+   `target/rpmbuild/RPMS/<artifactId>.rpm`.
+
+The spec has a fixed name because Maven activates a profile on a file that exists, not on a pattern. The package's
+own name is the spec's `Name:`, `python3-example-package`.
+
+The profile also skips the inherited `publish` goal, so an RPM project never uploads to a package index.
+
+The spec installs the wheel as it is, without rebuilding it, using Fedora's Python macros rather than hard-coded
+paths: `%pyproject_install` from `%{_pyproject_wheeldir}`, `%pyproject_save_files` for the file list,
+`%pyproject_check_import` as the check, and `%{python3}`.
+
+### Snapshots and feature branches
+
+The RPM can be built from a release, a snapshot or a feature-branch snapshot. `example.package.version` chooses
+which: `1.0.0-SNAPSHOT` by default, or for a gitflow feature branch,
+
+```bash
+mvn install -Dexample.package.version=1.0.0-feature_rpm-SNAPSHOT
+```
+
+which packages `example_package` `1.0.0.dev<timestamp>+feature.rpm` as `python3-example-package`
+`1.0.0~~dev<timestamp>+feature.rpm`. A later snapshot sorts after an earlier one, and every snapshot before the
+release. The release plugin refuses to
+release a project with snapshot dependencies, so a released RPM is always built from a released wheel.
+
+Separate repositories only see each other's snapshots through a Maven repository they share. On one machine that
+is the local repository, after `mvn install`; across machines, such as in CI, it takes a snapshot repository in the
+package's `<distributionManagement>` (Nexus, Artifactory, GitHub Packages), which the examples leave out, so `mvn
+deploy` has nowhere to deploy.
+
+### Building it
+
+It needs `rpm-build`, `python3-devel`, `pyproject-rpm-macros` and `python3-pip`, as on Fedora, and the example's
+wheel installed in the Maven repository: `task rpm` builds the plugin, parent, package and RPM in turn, and `task
+rpm -- -Dexample.package.version=…` another version. CI builds it in a Fedora container from a snapshot and then
+from a feature-branch snapshot, installs each RPM, and imports the package from it; the main CI job and the Docker
+image leave it out.
+
+## Building an RPM from the sdist
+
+`example_rpm_sdist/` packages the same project as an RPM, but builds it from its sdist, as Fedora builds Python
+packages, rather than installing the wheel Maven built. Its POM is `example_rpm`'s, with the sdist as the
+dependency (`<type>tar.gz</type>`), and it has its own `package.spec`, so the parent's `rpm` profile builds it the
+same way. The spec:
+
+- unpacks the sdist with `%autosetup -n example_package-%{dist_version}`;
+- generates its build dependencies with `%pyproject_buildrequires` (hatchling and hatch-vcs, from the project's
+  `[build-system]`);
+- builds the wheel with `%pyproject_wheel`, and installs and checks it as `example_rpm` does.
+
+The project's version comes from git through hatch-vcs, and inside `rpmbuild` that would be the version of
+whatever checkout surrounds the build directory. So the spec sets `SETUPTOOLS_SCM_PRETEND_VERSION` to the sdist's
+version, `%{dist_version}`, for both steps, as Fedora does for packages versioned from git. The RPM's Python
+version is then the Maven build's, the same as the wheel's.
+
+Building from the sdist compiles any extension modules against the distribution's own Python and libraries, for
+the architecture it builds on, which suits compiled packages; the wheel example packages exactly what the Maven
+build built and tested. The trade-off: the wheel in this RPM is built by `rpmbuild`, with Fedora's hatchling, not
+the one the plugin tested.
+
+It needs, besides what `example_rpm` needs, `python3-hatchling` and `python3-hatch-vcs`. `task rpm-sdist` builds
+the plugin, parent, package and RPM in turn. CI builds it in the same Fedora job, from the same snapshot as the
+wheel's RPM, installs it in the wheel RPM's place, and checks that Python reports the snapshot's version.
+
+## Building a container image
+
+`example_container/` installs the example's wheel into a virtual environment in a container image. Like the RPM
+example, its POM only inherits `example_parent` and takes the wheel as a Maven dependency. The parent's
+`container` profile, active in any project with a `Containerfile` at its root, does the rest:
+
+1. `distributions` copies the wheel into `target/container/`, the build context.
+2. `exec-maven-plugin` runs `docker build` on the Containerfile, passing the wheel's file name as the `WHEEL` build
+   argument, and tags the image `example-container:1.0.0-SNAPSHOT` (`container.image`, by default the project's
+   artifactId and version).
+
+The Containerfile creates `/opt/venv`, installs the wheel into it with pip, and activates it for everything that
+runs in the image, as the venv's `activate` script would: `VIRTUAL_ENV` is set to `/opt/venv`, and its `bin`
+comes first on the `PATH`, so `python`, `pip` and any console scripts the wheel installs are the venv's.
+The wheel is mounted for the install rather than copied, so it isn't left in the image. `container.engine=podman`
+builds with podman instead of docker, and the `PYTHON_IMAGE` build argument chooses the base image
+(`python:3.13.17-slim`). The image is built in `package` and not pushed anywhere: pushing it to a registry is up to
+the project.
+
+`task container` builds the plugin, parent, package and image in turn. CI builds the image after the example and
+imports the package from the image's venv.
+
 ## Developing the plugin
 
 `task build` (or `mvn install` in `python-maven-plugin/`) runs the unit tests and the integration tests.
@@ -381,8 +560,8 @@ Safeguards, so that a deployment that fires by accident publishes nothing:
 
 Still needed before a first release to Central:
 
-- **A verified namespace.** Central registers GitHub-based namespaces as `io.github.<user>`, so the groupId would
-  likely change from `com.github.realms42`.
+- **A verified namespace:** `io.github.realms42`, the groupId. Central verifies an `io.github.<user>` namespace
+  through the GitHub account `<user>`, here realms42.
 - **Signed artifacts:** Central rejects unsigned deployments at validation; add `maven-gpg-plugin` to the
   `release` profile with a signing key.
 - **Credentials:** a `settings.xml` `<server>` with the id `central` holding a Central Portal user token.

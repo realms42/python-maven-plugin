@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>it</groupId>
+  <artifactId>consumer</artifactId>
+  <version>1</version>
+  <packaging>pom</packaging>
+  <dependencies>
+    <dependency>
+      <groupId>it</groupId>
+      <artifactId>it_pkg</artifactId>
+      <version>1.0.0-feature_login-SNAPSHOT</version>
+      <type>whl</type>
+      <classifier>py3-none-any</classifier>
+    </dependency>
+    <dependency>
+      <groupId>it</groupId>
+      <artifactId>it_pkg</artifactId>
+      <version>1.0.0-feature_login-SNAPSHOT</version>
+      <type>tar.gz</type>
+    </dependency>
+  </dependencies>
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>@project.groupId@</groupId>
+        <artifactId>@project.artifactId@</artifactId>
+        <version>@project.version@</version>
+        <executions>
+          <execution>
+            <goals>
+              <goal>distributions</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-antrun-plugin</artifactId>
+        <version>3.1.0</version>
+        <executions>
+          <execution>
+            <phase>process-resources</phase>
+            <goals>
+              <goal>run</goal>
+            </goals>
+            <configuration>
+              <target>
+                <echo message="wheel.file=${python.wheel.it_pkg.file}"/>
+                <echo message="wheel.version=${python.wheel.it_pkg.version}"/>
+                <echo message="wheel.rpmVersion=${python.wheel.it_pkg.rpmVersion}"/>
+                <echo message="sdist.file=${python.sdist.it_pkg.file}"/>
+                <echo message="sdist.rpmVersion=${python.sdist.it_pkg.rpmVersion}"/>
+              </target>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+</project>

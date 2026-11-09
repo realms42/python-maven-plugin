@@ -6,6 +6,9 @@ vars:
   PLUGIN_DIR: python-maven-plugin
   PARENT_DIR: example_parent
   EXAMPLE_DIR: example_package
+  RPM_DIR: example_rpm
+  RPM_SDIST_DIR: example_rpm_sdist
+  CONTAINER_DIR: example_container
   MVN: mvn -B
   IMAGE: python-maven-plugin:latest
 
@@ -47,37 +50,71 @@ tasks:
     cmds:
       - '{{.MVN}} dependency:go-offline'
 
-  example:
-    desc: Build the example parent and package using the installed plugin
+  parent:
+    desc: Install the example parent POM
     deps: [build]
     dir: '{{.PARENT_DIR}}'
+    run: once
     cmds:
       - '{{.MVN}} install'
 
+  example:
+    desc: Build and install the example package, which inherits the installed parent
+    deps: [parent]
+    dir: '{{.EXAMPLE_DIR}}'
+    run: once
+    cmds:
+      - '{{.MVN}} install'
+
+  rpm:
+    desc: Build the RPM from the installed example wheel (another version with `task rpm -- -Dexample.package.version=…`)
+    deps: [example]
+    dir: '{{.RPM_DIR}}'
+    cmds:
+      - '{{.MVN}} install {{.CLI_ARGS}}'
+
+  rpm-sdist:
+    desc: Build the RPM from the installed example sdist, building the wheel in rpmbuild (needs rpmbuild, pyproject-rpm-macros, hatchling and hatch-vcs)
+    deps: [example]
+    dir: '{{.RPM_SDIST_DIR}}'
+    cmds:
+      - '{{.MVN}} install {{.CLI_ARGS}}'
+
+  container:
+    desc: Build a container image with the installed example wheel in a venv (needs docker)
+    deps: [example]
+    dir: '{{.CONTAINER_DIR}}'
+    cmds:
+      - '{{.MVN}} install {{.CLI_ARGS}}'
+
   lint:
     desc: Lint the example package via the plugin's lint goal
-    deps: [build]
+    deps: [parent]
     dir: '{{.EXAMPLE_DIR}}'
     cmds:
-      - '{{.MVN}} com.github.realms42:python-maven-plugin:lint'
+      - '{{.MVN}} io.github.realms42:python-maven-plugin:lint'
 
   format:
     desc: Check the example package's formatting via the plugin's format goal
-    deps: [build]
+    deps: [parent]
     dir: '{{.EXAMPLE_DIR}}'
     cmds:
-      - '{{.MVN}} com.github.realms42:python-maven-plugin:format'
+      - '{{.MVN}} io.github.realms42:python-maven-plugin:format'
 
   docker:
-    desc: Build the Docker image (plugin + example)
+    desc: Build the Docker image (plugin, parent and example package, without tests)
     cmds:
       - docker build -t {{.IMAGE}} .
 
   clean:
-    desc: Clean Maven build output for the plugin and the example
+    desc: Clean the build output of the plugin and every example
     cmds:
       - '{{.MVN}} -f {{.PLUGIN_DIR}}/pom.xml clean'
       - '{{.MVN}} -f {{.PARENT_DIR}}/pom.xml clean'
+      - '{{.MVN}} -f {{.EXAMPLE_DIR}}/pom.xml clean'
+      - '{{.MVN}} -f {{.RPM_DIR}}/pom.xml clean'
+      - '{{.MVN}} -f {{.RPM_SDIST_DIR}}/pom.xml clean'
+      - '{{.MVN}} -f {{.CONTAINER_DIR}}/pom.xml clean'
 
   all:
     desc: Build the plugin and the example package end to end

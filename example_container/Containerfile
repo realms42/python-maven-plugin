@@ -1,0 +1,10 @@
+ARG PYTHON_IMAGE=python:3.13.17-slim
+FROM ${PYTHON_IMAGE}
+
+ARG WHEEL
+RUN --mount=type=bind,source=${WHEEL},target=/tmp/${WHEEL} \
+    python -m venv /opt/venv \
+    && /opt/venv/bin/pip install --no-cache-dir /tmp/${WHEEL}
+
+ENV VIRTUAL_ENV=/opt/venv
+ENV PATH=$VIRTUAL_ENV/bin:$PATH
