@@ -94,12 +94,12 @@ tasks:
       - '{{.MVN}} com.github.realms42:python-maven-plugin:format'
 
   docker:
-    desc: Build the Docker image (plugin + example)
+    desc: Build the Docker image (plugin, parent and example package, without tests)
     cmds:
       - docker build -t {{.IMAGE}} .
 
   clean:
-    desc: Clean Maven build output for the plugin and the example
+    desc: Clean the build output of the plugin and every example
     cmds:
       - '{{.MVN}} -f {{.PLUGIN_DIR}}/pom.xml clean'
       - '{{.MVN}} -f {{.PARENT_DIR}}/pom.xml clean'
