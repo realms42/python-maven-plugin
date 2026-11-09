@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Installs example_package's wheel into a virtual environment in a container image. Needs docker or podman. -->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.github.realms42</groupId>
+        <artifactId>example-parent</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+        <!-- Resolved from the Maven repository, as from any other repository: install example_parent first. -->
+        <relativePath/>
+    </parent>
+
+    <artifactId>example-container</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+    <packaging>pom</packaging>
+
+    <name>Example Python container</name>
+    <description>example_package's wheel, installed in a container image</description>
+
+    <properties>
+        <example.package.version>1.0.0-SNAPSHOT</example.package.version>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.github.realms42</groupId>
+            <artifactId>example_package</artifactId>
+            <version>${example.package.version}</version>
+            <type>whl</type>
+            <classifier>py3-none-any</classifier>
+        </dependency>
+    </dependencies>
+</project>

@@ -32,6 +32,16 @@ jobs:
       - name: Build and test the plugin, then build the example package
         run: task all
 
+      - name: Build the container image
+        run: mvn -B -f example_container/pom.xml install
+
+      - name: Import the package from the image's venv
+        run: >
+          docker run --rm example-container:1.0.0-SNAPSHOT python -c
+          "import example_package, importlib.metadata as m;
+          print(example_package.__file__, m.version('example_package'));
+          assert example_package.__file__.startswith('/opt/venv/')"
+
   rpm:
     runs-on: ubuntu-latest
     container: fedora:43

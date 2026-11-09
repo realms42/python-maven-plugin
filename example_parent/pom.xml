@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- An example parent POM: the plugin and its configuration, shared by every Python and RPM project below it. -->
+<!-- An example parent POM: the plugin and its configuration, shared by the Python, RPM and container projects below it. -->
 <project xmlns="http://maven.apache.org/POM/4.0.0"
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
     xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
@@ -11,7 +11,7 @@
     <packaging>pom</packaging>
 
     <name>Example Python Parent</name>
-    <description>Example parent POM: the shared python-maven-plugin configuration for Python and RPM projects</description>
+    <description>Example parent POM: the shared python-maven-plugin configuration for Python, RPM and container projects</description>
 
     <properties>
         <python-maven-plugin.version>1.0.0-SNAPSHOT</python-maven-plugin.version>
@@ -142,6 +142,68 @@
                                             <type>rpm</type>
                                         </artifact>
                                     </artifacts>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+
+        <!-- For projects with a Containerfile in src/main/container: see "Building a container image" in the README. -->
+        <profile>
+            <id>container</id>
+            <activation>
+                <file>
+                    <exists>${basedir}/src/main/container/Containerfile</exists>
+                </file>
+            </activation>
+            <properties>
+                <container.engine>docker</container.engine>
+                <container.image>${project.artifactId}:${project.version}</container.image>
+                <container.context>${project.build.directory}/container</container.context>
+                <python.publish.skip>true</python.publish.skip>
+            </properties>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>com.github.realms42</groupId>
+                        <artifactId>python-maven-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>wheel-to-context</id>
+                                <goals>
+                                    <goal>wheels</goal>
+                                </goals>
+                                <configuration>
+                                    <outputDirectory>${container.context}</outputDirectory>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>exec-maven-plugin</artifactId>
+                        <version>3.6.4</version>
+                        <executions>
+                            <execution>
+                                <id>container-build</id>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>exec</goal>
+                                </goals>
+                                <configuration>
+                                    <executable>${container.engine}</executable>
+                                    <arguments>
+                                        <argument>build</argument>
+                                        <argument>--file</argument>
+                                        <argument>${project.basedir}/src/main/container/Containerfile</argument>
+                                        <argument>--build-arg</argument>
+                                        <argument>WHEEL=${python.wheel.file}</argument>
+                                        <argument>--tag</argument>
+                                        <argument>${container.image}</argument>
+                                        <argument>${container.context}</argument>
+                                    </arguments>
                                 </configuration>
                             </execution>
                         </executions>

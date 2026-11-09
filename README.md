@@ -65,13 +65,16 @@ cache-keys = [{ file = "pyproject.toml" }, { git = { commit = true, tags = true 
 wheel into the local Maven repository.
 
 The examples are independent projects, as if each lived in its own repository, connected only through the Maven
-repository. Build them in order, each with `mvn install` (`task rpm` does all three):
+repository. Build them in order, each with `mvn install` (`task rpm` and `task container` build everything they
+need):
 
-1. `example_parent/`: a parent POM holding the plugin and its configuration, and the RPM build.
+1. `example_parent/`: a parent POM holding the plugin and its configuration, and the RPM and container builds.
 2. `example_package/`: a Python package that only names and versions itself, and inherits the rest from the
    installed parent.
 3. `example_rpm/`: an RPM of the installed package's wheel, which only names its spec and the wheel, and inherits
    the build from the parent (see [Building an RPM](#building-an-rpm)).
+4. `example_container/`: a container image with the installed package's wheel in a venv, which only names the wheel
+   and inherits the build from the parent (see [Building a container image](#building-a-container-image)).
 
 ## The build
 
@@ -373,6 +376,26 @@ wheel installed in the Maven repository: `task rpm` builds the plugin, parent, p
 rpm -- -Dexample.package.version=…` another version. CI builds it in a Fedora container from a snapshot and then
 from a feature-branch snapshot, installs each RPM, and imports the package from it; the main CI job and the Docker
 image leave it out.
+
+## Building a container image
+
+`example_container/` installs the example's wheel into a virtual environment in a container image. Like the RPM
+example, its POM only inherits `example_parent` and takes the wheel as a Maven dependency. The parent's
+`container` profile, active in any project with a `src/main/container/Containerfile`, does the rest:
+
+1. `wheels` copies the wheel into `target/container/`, the build context.
+2. `exec-maven-plugin` runs `docker build` on the Containerfile, passing the wheel's file name as the `WHEEL` build
+   argument, and tags the image `example-container:1.0.0-SNAPSHOT` (`container.image`, by default the project's
+   artifactId and version).
+
+The Containerfile creates `/opt/venv`, installs the wheel into it with pip, and puts the venv first on the `PATH`.
+The wheel is mounted for the install rather than copied, so it isn't left in the image. `container.engine=podman`
+builds with podman instead of docker, and the `PYTHON_IMAGE` build argument chooses the base image
+(`python:3.13-slim`). The image is built in `package` and not pushed anywhere: pushing it to a registry is up to
+the project.
+
+`task container` builds the plugin, parent, package and image in turn. CI builds the image after the example and
+imports the package from the image's venv.
 
 ## Configuring many projects from a parent POM
 

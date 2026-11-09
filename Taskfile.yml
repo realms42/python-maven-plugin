@@ -7,6 +7,7 @@ vars:
   PARENT_DIR: example_parent
   EXAMPLE_DIR: example_package
   RPM_DIR: example_rpm
+  CONTAINER_DIR: example_container
   MVN: mvn -B
   IMAGE: python-maven-plugin:latest
 
@@ -71,6 +72,13 @@ tasks:
     cmds:
       - '{{.MVN}} install {{.CLI_ARGS}}'
 
+  container:
+    desc: Build a container image with the installed example wheel in a venv (needs docker)
+    deps: [example]
+    dir: '{{.CONTAINER_DIR}}'
+    cmds:
+      - '{{.MVN}} install {{.CLI_ARGS}}'
+
   lint:
     desc: Lint the example package via the plugin's lint goal
     deps: [parent]
@@ -97,6 +105,7 @@ tasks:
       - '{{.MVN}} -f {{.PARENT_DIR}}/pom.xml clean'
       - '{{.MVN}} -f {{.EXAMPLE_DIR}}/pom.xml clean'
       - '{{.MVN}} -f {{.RPM_DIR}}/pom.xml clean'
+      - '{{.MVN}} -f {{.CONTAINER_DIR}}/pom.xml clean'
 
   all:
     desc: Build the plugin and the example package end to end
