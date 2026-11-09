@@ -108,7 +108,6 @@ tasks:
       - '{{.MVN}} -f {{.CONTAINER_DIR}}/pom.xml clean'
 
   all:
-    desc: Build the plugin and the example package end to end
+    desc: Build the plugin, the parent and the example package in order, with the root POM
     cmds:
-      - task: build
-      - task: example
+      - '{{.MVN}} install {{.CLI_ARGS}}'
