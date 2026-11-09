@@ -23,8 +23,17 @@ jobs:
       - name: Set up uv
         uses: astral-sh/setup-uv@v7
 
-      - name: Build the plugin, the parent, the example package and the container image
-        run: mvn -B install -Pcontainer
+      - name: Install Task
+        uses: arduino/setup-task@v2
+        with:
+          version: 3.x
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and test the plugin, then build the example package
+        run: task all
+
+      - name: Build the container image
+        run: mvn -B -f example_container/pom.xml install
 
       - name: Check the image's venv is active, and import the package from it
         run: >

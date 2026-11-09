@@ -65,7 +65,8 @@ cache-keys = [{ file = "pyproject.toml" }, { git = { commit = true, tags = true 
 wheel into the local Maven repository.
 
 The examples are independent projects, as if each lived in its own repository, connected only through the Maven
-repository. Build them in order, each with `mvn install`:
+repository. Build them in order, each with `mvn install` (`task rpm` and `task container` build everything they
+need):
 
 1. `example_parent/`: a parent POM holding the plugin and its configuration, and the RPM and container builds.
 2. `example_package/`: a Python package that only names and versions itself, and inherits the rest from the
@@ -74,24 +75,6 @@ repository. Build them in order, each with `mvn install`:
    the build from the parent (see [Building an RPM](#building-an-rpm)).
 4. `example_container/`: a container image with the installed package's wheel in a venv, which only names the wheel
    and inherits the build from the parent (see [Building a container image](#building-a-container-image)).
-
-### Building everything
-
-`mvn install` in the repository root builds the plugin, the parent and the package in that order, each as its own
-Maven build, as separate repositories would be built. `-Prpm` and `-Pcontainer` add the RPM and the container
-image, which need `rpmbuild` and Fedora's Python macros, and docker. `mvn clean` in the root cleans them all.
-
-```bash
-mvn install                       # plugin, parent, package
-mvn install -Pcontainer           # and the container image
-mvn install -Prpm -Pcontainer     # and the RPM
-mvn install "-Dmvn.args=-B -DskipTests"   # options for every build, -B by default
-```
-
-It can't be one Maven reactor with the projects as modules. A plugin can't be a build extension in the reactor
-that builds it, as Maven loads extensions before it builds anything, and the examples' empty `<relativePath/>`
-looks the parent up in the Maven repository, not in the reactor. So the root POM runs `mvn install` in each
-directory in turn, with the Maven that runs it, and stops at the first that fails.
 
 ## The build
 
@@ -413,8 +396,8 @@ builds with podman instead of docker, and the `PYTHON_IMAGE` build argument choo
 (`python:3.13-slim`). The image is built in `package` and not pushed anywhere: pushing it to a registry is up to
 the project.
 
-`task container`, or `mvn install -Pcontainer` in the root, builds the plugin, parent, package and image in turn.
-CI builds them with the root POM, then imports the package from the image's venv.
+`task container` builds the plugin, parent, package and image in turn. CI builds the image after the example and
+imports the package from the image's venv.
 
 ## Configuring many projects from a parent POM
 
