@@ -29,12 +29,7 @@ class LintMojoTest {
     private final Commands commands = new Commands();
 
     private LintMojo mojo() {
-        LintMojo mojo = configure(new LintMojo() {
-            @Override
-            protected int exec(String cmd, List<String> args, Map<String, String> env) {
-                return commands.exec(cmd, args, env);
-            }
-        }, project, "1.0.0");
+        LintMojo mojo = configure(new LintMojo(), project, "1.0.0", commands);
         set(mojo, "ruffVersion", "0.17.3");
         set(mojo, "enforcedRules", List.of("E", "W", "F", "I", "B", "UP"));
         return mojo;

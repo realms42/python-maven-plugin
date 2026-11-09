@@ -17,7 +17,6 @@ import java.nio.file.Path;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
 import java.util.zip.GZIPOutputStream;
@@ -34,7 +33,6 @@ import org.apache.maven.project.MavenProject;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
 class DistributionsMojoTest {
@@ -375,27 +373,5 @@ class DistributionsMojoTest {
         MojoExecutionException e = assertThrows(MojoExecutionException.class, () -> mojo().execute());
 
         assertTrue(e.getMessage().startsWith("Failed to read the sdist com.example:pkg:tar.gz:1.0"), e.getMessage());
-    }
-
-    @ParameterizedTest
-    @CsvSource({
-            "1.0.0, 1.0.0",
-            "1.0.0.dev20261109092818, 1.0.0~~dev20261109092818",
-            "1.0.0rc1, 1.0.0~rc1",
-            "1.0a2, 1.0~a2",
-            "1.0b1.dev3, 1.0~b1~dev3",
-            "2.0.post1, 2.0^post1",
-            "2.0.post1.dev2, 2.0^post1~dev2",
-            "1.0.0.dev1+feature.login, 1.0.0~~dev1+feature.login",
-            "1.0+Local.7, 1.0+local.7",
-    })
-    void convertsPep440ToRpmVersions(String pep440, String rpm) {
-        assertEquals(Optional.of(rpm), DistributionsMojo.rpmVersion(pep440));
-    }
-
-    @ParameterizedTest
-    @ValueSource(strings = {"1!2.0", "1.0-SNAPSHOT", "1.0.0.dev", "latest"})
-    void cantConvertWhatIsntANormalizedPep440VersionWithoutAnEpoch(String version) {
-        assertEquals(Optional.empty(), DistributionsMojo.rpmVersion(version));
     }
 }

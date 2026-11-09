@@ -64,12 +64,7 @@ class PublishMojoTest {
     }
 
     private PublishMojo mojo(String version) {
-        PublishMojo mojo = configure(new PublishMojo() {
-            @Override
-            protected int exec(String cmd, List<String> args, Map<String, String> env) {
-                return commands.exec(cmd, args, env);
-            }
-        }, project, version);
+        PublishMojo mojo = configure(new PublishMojo(), project, version, commands);
         set(mojo, "version", version);
         set(mojo, "settings", settings);
         set(mojo, "settingsDecrypter", decrypter);

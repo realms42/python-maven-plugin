@@ -11,7 +11,6 @@ import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -29,12 +28,7 @@ class BuildMojoTest {
     private final Commands commands = new Commands();
 
     private BuildMojo mojo() {
-        return configure(new BuildMojo() {
-            @Override
-            protected int exec(String cmd, List<String> args, Map<String, String> env) {
-                return commands.exec(cmd, args, env);
-            }
-        }, project, "3.1.0-SNAPSHOT");
+        return configure(new BuildMojo(), project, "3.1.0-SNAPSHOT", commands);
     }
 
     @Test
@@ -81,18 +75,16 @@ class BuildMojoTest {
         Files.writeString(output.resolve("example-0.9.0.tar.gz"), "stale");
         Files.createDirectories(output.resolve("nested"));
         Files.writeString(output.resolve("nested/leftover"), "stale");
-        BuildMojo mojo = configure(new BuildMojo() {
-            @Override
-            protected int exec(String cmd, List<String> args, Map<String, String> env) {
-                try {
-                    Files.createDirectories(output);
-                    Files.writeString(output.resolve("example-1.0.0.tar.gz"), "fresh");
-                } catch (IOException e) {
-                    throw new UncheckedIOException(e);
-                }
-                return 0;
+        BuildMojo mojo = configure(new BuildMojo(), project, "1.0.0");
+        mojo.commandRunner = (cmd, args, env) -> {
+            try {
+                Files.createDirectories(output);
+                Files.writeString(output.resolve("example-1.0.0.tar.gz"), "fresh");
+            } catch (IOException e) {
+                throw new UncheckedIOException(e);
             }
-        }, project, "1.0.0");
+            return 0;
+        };
 
         mojo.execute();
 
